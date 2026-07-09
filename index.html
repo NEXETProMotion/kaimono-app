@@ -1,0 +1,1004 @@
+<title>食材在庫&買い物リスト</title>
+<style>
+  :root {
+    --bg: #f4f6f1;
+    --surface: #ffffff;
+    --ink: #24301f;
+    --ink-soft: #6d7a63;
+    --line: #dee4d5;
+    --accent: #3c7a33;
+    --accent-ink: #ffffff;
+    --accent-soft: #e3efdd;
+    --danger: #b1462f;
+    --danger-soft: #fbe9e3;
+    --warn: #a06a12;
+    --warn-soft: #f8eed8;
+    --ok: #3c7a33;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151a11;
+      --surface: #1e2518;
+      --ink: #e8eee1;
+      --ink-soft: #99a68c;
+      --line: #333d29;
+      --accent: #7fb96f;
+      --accent-ink: #13200e;
+      --accent-soft: #2a3921;
+      --danger: #e08668;
+      --danger-soft: #3b241b;
+      --warn: #d9a94e;
+      --warn-soft: #38301c;
+      --ok: #7fb96f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151a11;
+    --surface: #1e2518;
+    --ink: #e8eee1;
+    --ink-soft: #99a68c;
+    --line: #333d29;
+    --accent: #7fb96f;
+    --accent-ink: #13200e;
+    --accent-soft: #2a3921;
+    --danger: #e08668;
+    --danger-soft: #3b241b;
+    --warn: #d9a94e;
+    --warn-soft: #38301c;
+    --ok: #7fb96f;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f1;
+    --surface: #ffffff;
+    --ink: #24301f;
+    --ink-soft: #6d7a63;
+    --line: #dee4d5;
+    --accent: #3c7a33;
+    --accent-ink: #ffffff;
+    --accent-soft: #e3efdd;
+    --danger: #b1462f;
+    --danger-soft: #fbe9e3;
+    --warn: #a06a12;
+    --warn-soft: #f8eed8;
+    --ok: #3c7a33;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 480px; margin: 0 auto; padding: 14px 14px 90px; }
+  h1 { font-size: 20px; margin: 6px 0 2px; }
+  .sub { color: var(--ink-soft); font-size: 12px; margin: 0 0 12px; }
+  .tabpage { display: none; }
+  .tabpage.active { display: block; }
+
+  /* ---- alert banner ---- */
+  .alert-banner {
+    background: var(--danger-soft);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .alert-banner.show { display: block; }
+  .alert-banner strong { font-weight: 700; }
+
+  /* ---- voice ---- */
+  .voice-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .voice-btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 12px;
+    padding: 13px 0;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .voice-btn.listening {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .voice-hint { font-size: 11px; color: var(--ink-soft); margin: -8px 0 14px; line-height: 1.6; }
+
+  /* ---- quick add ---- */
+  .section-label {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-soft); font-weight: 700; margin: 0 2px 8px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .chips button {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .chips button span { color: var(--accent); font-weight: 700; }
+  .chips .empty-note { font-size: 12px; color: var(--ink-soft); padding: 6px 2px; }
+
+  /* ---- inventory list ---- */
+  ul.inv { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .item-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+  .item-row .name-area { flex: 1; min-width: 0; cursor: pointer; padding: 4px 0; }
+  .item-row .name { font-size: 15px; font-weight: 600; word-break: break-word; }
+  .item-row .tags { font-size: 11px; color: var(--ink-soft); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  .tag.alert-on { color: var(--warn); border-color: var(--warn); }
+  .tag.staple { color: var(--accent); border-color: var(--accent); }
+  .counter { display: flex; align-items: center; gap: 2px; flex: none; }
+  .counter button {
+    width: 38px; height: 38px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 10px;
+    font-size: 18px;
+    font-family: inherit;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .counter .count {
+    min-width: 40px; text-align: center;
+    font-size: 17px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .counter .count.zero { color: var(--danger); }
+  .counter .count.low { color: var(--warn); }
+  .item-editor {
+    display: none;
+    border-top: 1px solid var(--line);
+    padding: 12px;
+    background: var(--bg);
+  }
+  li.item.open .item-editor { display: block; }
+  .ed-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: 14px; }
+  .ed-row label { color: var(--ink); }
+  .ed-row .desc { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .ed-row input[type="number"] {
+    width: 74px;
+    font-size: 16px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    padding: 8px;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .switch { position: relative; width: 48px; height: 28px; flex: none; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .switch .knob {
+    position: absolute; inset: 0;
+    background: var(--line);
+    border-radius: 999px;
+    transition: background 0.15s;
+  }
+  .switch .knob::after {
+    content: "";
+    position: absolute; top: 3px; left: 3px;
+    width: 22px; height: 22px;
+    background: var(--surface);
+    border-radius: 50%;
+    transition: transform 0.15s;
+  }
+  .switch input:checked + .knob { background: var(--accent); }
+  .switch input:checked + .knob::after { transform: translateX(20px); }
+  @media (prefers-reduced-motion: reduce) {
+    .switch .knob, .switch .knob::after { transition: none; }
+  }
+  .ed-del {
+    width: 100%;
+    margin-top: 8px;
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: 10px;
+    padding: 10px 0;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .inv-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 30px 10px; line-height: 1.8; }
+  .preset-btn {
+    display: block;
+    margin: 10px auto 0;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* ---- add form ---- */
+  .add-form { display: flex; gap: 8px; margin-bottom: 20px; }
+  .add-form input[type="text"] {
+    flex: 1; min-width: 0;
+    font-size: 16px;
+    font-family: inherit;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .add-form input[type="number"] {
+    width: 64px;
+    font-size: 16px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    padding: 12px 4px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .add-form button {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 10px;
+    padding: 0 18px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  /* ---- shopping list ---- */
+  ul.shop { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.shop-item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .shop-item .info { flex: 1; min-width: 0; }
+  .shop-item .name { font-size: 15px; font-weight: 600; }
+  .shop-item .reason { font-size: 12px; margin-top: 2px; }
+  .reason.out { color: var(--danger); }
+  .reason.low { color: var(--warn); }
+  .shop-item .qty { display: flex; align-items: center; gap: 2px; flex: none; }
+  .shop-item .qty button {
+    width: 34px; height: 34px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .shop-item .qty .n { min-width: 32px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bought-btn {
+    flex: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .shop-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 40px 10px; line-height: 1.8; }
+
+  /* ---- recipes ---- */
+  .recipe-group { margin-bottom: 20px; }
+  ul.recipes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.recipe {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .recipe .r-name { font-size: 15px; font-weight: 700; }
+  .recipe .r-ing { font-size: 12px; color: var(--ink-soft); margin-top: 4px; line-height: 1.7; }
+  .recipe .have { color: var(--ok); }
+  .recipe .miss { color: var(--danger); font-weight: 600; }
+  .recipe-note { font-size: 11px; color: var(--ink-soft); line-height: 1.7; margin-top: 16px; }
+
+  /* ---- toast ---- */
+  .toast {
+    position: fixed;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    max-width: 90%;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 14px;
+    line-height: 1.5;
+    z-index: 50;
+    display: none;
+    text-align: center;
+  }
+  .toast.show { display: block; }
+
+  /* ---- bottom nav ---- */
+  nav.tabs {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    display: flex;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 40;
+  }
+  nav.tabs button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 8px 0 10px;
+    cursor: pointer;
+    position: relative;
+  }
+  nav.tabs button .ico { display: block; font-size: 20px; margin-bottom: 2px; }
+  nav.tabs button.active { color: var(--accent); font-weight: 700; }
+  nav.tabs .badge {
+    position: absolute;
+    top: 4px; right: calc(50% - 24px);
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 17px; height: 17px;
+    border-radius: 999px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  nav.tabs .badge.show { display: flex; }
+
+  /* ---- confirm modal ---- */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 60;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 18px;
+    max-width: 320px;
+    width: 100%;
+  }
+  .modal .m-msg { font-size: 15px; line-height: 1.7; margin: 0 0 16px; }
+  .modal .m-btns { display: flex; gap: 10px; }
+  .modal .m-btns button {
+    flex: 1;
+    border-radius: 10px;
+    padding: 12px 0;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .modal .m-cancel {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .modal .m-ok {
+    background: var(--danger);
+    border: 1px solid var(--danger);
+    color: #fff;
+  }
+
+  details.danger-zone { margin-top: 24px; }
+  details.danger-zone summary { font-size: 12px; color: var(--ink-soft); cursor: pointer; }
+  details.danger-zone button {
+    margin-top: 8px;
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+</style>
+
+<div class="toast" id="toast" role="status"></div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" role="alertdialog" aria-labelledby="modalMsg">
+    <p class="m-msg" id="modalMsg"></p>
+    <div class="m-btns">
+      <button class="m-cancel" id="modalCancel">キャンセル</button>
+      <button class="m-ok" id="modalOk">実行する</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- ============ 在庫タブ ============ -->
+  <section class="tabpage active" id="page-stock">
+    <h1>食材在庫</h1>
+    <p class="sub">データはこの端末に保存されます。品名をタップすると詳細設定が開きます。</p>
+
+    <div class="alert-banner" id="alertBanner"></div>
+
+    <div class="voice-row">
+      <button class="voice-btn" id="voiceBtn">🎤 音声で入力</button>
+    </div>
+    <p class="voice-hint">言い方の例:「牛乳 2本 追加」「卵 使った」「トマト なくなった」「じゃがいも 削除」</p>
+
+    <div class="section-label">ワンタップ登録(常備食材)</div>
+    <div class="chips" id="stapleChips"></div>
+
+    <div class="section-label">食材を追加</div>
+    <form class="add-form" id="addForm">
+      <input type="text" id="addName" placeholder="品名(例:牛乳)" maxlength="30" autocomplete="off" aria-label="品名">
+      <input type="number" id="addCount" value="1" min="0" max="99" inputmode="numeric" aria-label="個数">
+      <button type="submit">追加</button>
+    </form>
+
+    <div class="section-label">在庫一覧</div>
+    <ul class="inv" id="invList"></ul>
+
+    <details class="danger-zone">
+      <summary>データの初期化</summary>
+      <button id="resetBtn">すべてのデータを消去する</button>
+    </details>
+  </section>
+
+  <!-- ============ 買い物タブ ============ -->
+  <section class="tabpage" id="page-shop">
+    <h1>買い物リスト</h1>
+    <p class="sub">在庫切れ・アラート対象(設定数以下)の食材が自動で並びます。「買った」を押すと在庫に反映されます。</p>
+    <ul class="shop" id="shopList"></ul>
+  </section>
+
+  <!-- ============ 献立タブ ============ -->
+  <section class="tabpage" id="page-menu">
+    <h1>今日の献立</h1>
+    <p class="sub">いまの在庫で作れる料理を内蔵レシピ集(約40品)から探します。</p>
+    <div id="menuArea"></div>
+    <p class="recipe-note">※品名の部分一致で判定しています(例: 在庫「豚肉」はレシピの「豚肉」に一致)。調味料(醤油・塩など)は常備されている前提で判定に含めていません。</p>
+  </section>
+</div>
+
+<nav class="tabs">
+  <button data-page="stock" class="active"><span class="ico">🥕</span>在庫</button>
+  <button data-page="shop"><span class="ico">🛒</span>買い物<span class="badge" id="shopBadge"></span></button>
+  <button data-page="menu"><span class="ico">🍳</span>献立</button>
+</nav>
+
+<script>
+(function () {
+  'use strict';
+  const KEY = 'pantry-app-v1';
+  const MAX_STAPLES = 10;
+  const $ = id => document.getElementById(id);
+
+  /* ---------------- state ---------------- */
+  // item: {id, name, count, staple, alertOn, threshold, buyQty}
+  let items = [];
+  let openId = null;
+
+  try { items = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { items = []; }
+  const save = () => localStorage.setItem(KEY, JSON.stringify(items));
+
+  const esc = s => String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const newItem = (name, count) => ({
+    id: 'i' + Date.now() + Math.floor(Math.random() * 10000),
+    name: name.trim(),
+    count: Math.max(0, count | 0),
+    staple: false,
+    alertOn: false,
+    threshold: 1,
+    buyQty: 1
+  });
+
+  const findByName = name => {
+    const n = name.trim();
+    if (!n) return null;
+    return items.find(i => i.name === n)
+        || items.find(i => i.name.includes(n) || n.includes(i.name))
+        || null;
+  };
+
+  // アラート対象: アラートON かつ 在庫が閾値「以下」
+  const isAlerting = i => i.alertOn && i.count <= i.threshold;
+  // 買い物リスト対象: 在庫0、またはアラート条件成立
+  const needsBuying = i => i.count === 0 || isAlerting(i);
+
+  /* ---------------- confirm modal ---------------- */
+  let modalOkHandler = null;
+  function confirmDialog(msg, onOk) {
+    $('modalMsg').textContent = msg;
+    modalOkHandler = onOk;
+    $('modalOverlay').classList.add('show');
+  }
+  $('modalOk').addEventListener('click', () => {
+    $('modalOverlay').classList.remove('show');
+    if (modalOkHandler) { modalOkHandler(); modalOkHandler = null; }
+  });
+  $('modalCancel').addEventListener('click', () => {
+    $('modalOverlay').classList.remove('show');
+    modalOkHandler = null;
+  });
+  $('modalOverlay').addEventListener('click', e => {
+    if (e.target === $('modalOverlay')) {
+      $('modalOverlay').classList.remove('show');
+      modalOkHandler = null;
+    }
+  });
+
+  /* ---------------- toast ---------------- */
+  let toastTimer = null;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  /* ---------------- render: 在庫 ---------------- */
+  function renderAlertBanner() {
+    const el = $('alertBanner');
+    const hits = items.filter(needsBuying);
+    if (hits.length === 0) { el.classList.remove('show'); return; }
+    el.innerHTML = '⚠️ <strong>補充が必要:</strong> ' +
+      hits.map(i => `${esc(i.name)}(残${i.count})`).join('、');
+    el.classList.add('show');
+  }
+
+  function renderChips() {
+    const el = $('stapleChips');
+    const staples = items.filter(i => i.staple);
+    if (staples.length === 0) {
+      el.innerHTML = '<div class="empty-note">品名タップ→「常備食材にする」をONにすると、ここにワンタップ追加ボタンが並びます(最大10個)。</div>';
+      return;
+    }
+    el.innerHTML = staples.map(i =>
+      `<button data-quick="${i.id}">${esc(i.name)} <span>+1</span></button>`).join('');
+  }
+
+  function renderInv() {
+    const el = $('invList');
+    if (items.length === 0) {
+      el.innerHTML = `<div class="inv-empty">在庫はまだ空です。<br>上の入力欄か、下のボタンでよく使う食材をまとめて登録できます。
+        <button class="preset-btn" id="presetBtn">おすすめ食材10個を一括登録</button></div>`;
+      renderChips();
+      return;
+    }
+    const sorted = [...items].sort((a, b) =>
+      (needsBuying(b) - needsBuying(a)) || (b.staple - a.staple) || a.name.localeCompare(b.name, 'ja'));
+    el.innerHTML = sorted.map(i => {
+      const cls = i.count === 0 ? 'zero' : (isAlerting(i) ? 'low' : '');
+      return `<li class="item ${i.id === openId ? 'open' : ''}" data-id="${i.id}">
+        <div class="item-row">
+          <div class="name-area" data-open="${i.id}">
+            <div class="name">${esc(i.name)}</div>
+            <div class="tags">
+              ${i.staple ? '<span class="tag staple">常備</span>' : ''}
+              ${i.alertOn ? `<span class="tag alert-on">残${i.threshold}以下で通知</span>` : ''}
+            </div>
+          </div>
+          <div class="counter">
+            <button data-dec="${i.id}" aria-label="1減らす">−</button>
+            <span class="count ${cls}">${i.count}</span>
+            <button data-inc="${i.id}" aria-label="1増やす">＋</button>
+          </div>
+        </div>
+        <div class="item-editor">
+          <div class="ed-row">
+            <label>常備食材にする<span class="desc">ワンタップ登録に表示(最大${MAX_STAPLES}個)</span></label>
+            <span class="switch"><input type="checkbox" data-staple="${i.id}" ${i.staple ? 'checked' : ''}><span class="knob"></span></span>
+          </div>
+          <div class="ed-row">
+            <label>アラート<span class="desc">在庫が下の数「以下」で通知・買い物リストへ</span></label>
+            <span class="switch"><input type="checkbox" data-alert="${i.id}" ${i.alertOn ? 'checked' : ''}><span class="knob"></span></span>
+          </div>
+          <div class="ed-row">
+            <label>アラートする在庫数(以下)</label>
+            <input type="number" min="0" max="99" inputmode="numeric" value="${i.threshold}" data-threshold="${i.id}">
+          </div>
+          <div class="ed-row">
+            <label>買い物時の購入数</label>
+            <input type="number" min="1" max="99" inputmode="numeric" value="${i.buyQty}" data-buyqty="${i.id}">
+          </div>
+          <button class="ed-del" data-del="${i.id}">この食材を削除</button>
+        </div>
+      </li>`;
+    }).join('');
+    renderChips();
+  }
+
+  /* ---------------- render: 買い物 ---------------- */
+  function renderShop() {
+    const list = items.filter(needsBuying);
+    const el = $('shopList');
+    const badge = $('shopBadge');
+    badge.textContent = list.length;
+    badge.classList.toggle('show', list.length > 0);
+    if (list.length === 0) {
+      el.innerHTML = '<div class="shop-empty">🎉 いま買うものはありません。<br>在庫が切れたりアラート条件になると自動で追加されます。</div>';
+      return;
+    }
+    el.innerHTML = list.map(i => `<li class="shop-item">
+      <div class="info">
+        <div class="name">${esc(i.name)}</div>
+        <div class="reason ${i.count === 0 ? 'out' : 'low'}">${i.count === 0 ? '在庫切れ' : `残りわずか(残${i.count})`}</div>
+      </div>
+      <div class="qty">
+        <button data-qdec="${i.id}" aria-label="購入数を減らす">−</button>
+        <span class="n">${i.buyQty}</span>
+        <button data-qinc="${i.id}" aria-label="購入数を増やす">＋</button>
+      </div>
+      <button class="bought-btn" data-bought="${i.id}">買った</button>
+    </li>`).join('');
+  }
+
+  /* ---------------- render: 献立 ---------------- */
+  const RECIPES = [
+    { name: 'カレーライス', ing: ['米', '玉ねぎ', 'にんじん', 'じゃがいも', '豚肉'] },
+    { name: '肉じゃが', ing: ['じゃがいも', '玉ねぎ', 'にんじん', '豚肉'] },
+    { name: '豚の生姜焼き', ing: ['豚肉', '玉ねぎ'] },
+    { name: 'オムライス', ing: ['米', '卵', '玉ねぎ', '鶏肉'] },
+    { name: 'チャーハン', ing: ['米', '卵', 'ねぎ'] },
+    { name: '親子丼', ing: ['米', '鶏肉', '卵', '玉ねぎ'] },
+    { name: '牛丼', ing: ['米', '牛肉', '玉ねぎ'] },
+    { name: '豆腐とわかめの味噌汁', ing: ['豆腐', 'わかめ'] },
+    { name: '麻婆豆腐', ing: ['豆腐', 'ひき肉', 'ねぎ'] },
+    { name: 'ハンバーグ', ing: ['ひき肉', '玉ねぎ', '卵'] },
+    { name: 'クリームシチュー', ing: ['鶏肉', 'じゃがいも', 'にんじん', '玉ねぎ', '牛乳'] },
+    { name: 'チキングラタン', ing: ['鶏肉', '玉ねぎ', '牛乳', 'チーズ'] },
+    { name: 'ポテトサラダ', ing: ['じゃがいも', 'きゅうり', 'にんじん'] },
+    { name: '野菜炒め', ing: ['キャベツ', 'にんじん', '豚肉', 'ピーマン'] },
+    { name: '回鍋肉', ing: ['キャベツ', '豚肉', 'ピーマン'] },
+    { name: '豚汁', ing: ['豚肉', '大根', 'にんじん'] },
+    { name: '唐揚げ', ing: ['鶏肉', 'にんにく'] },
+    { name: 'だし巻き卵', ing: ['卵'] },
+    { name: 'フレンチトースト', ing: ['食パン', '卵', '牛乳'] },
+    { name: 'ピザトースト', ing: ['食パン', 'チーズ', 'ピーマン'] },
+    { name: 'ナポリタン', ing: ['パスタ', '玉ねぎ', 'ピーマン', 'ウインナー'] },
+    { name: 'ペペロンチーノ', ing: ['パスタ', 'にんにく'] },
+    { name: 'ミートソースパスタ', ing: ['パスタ', 'ひき肉', '玉ねぎ', 'トマト'] },
+    { name: 'クリームパスタ', ing: ['パスタ', '牛乳', 'ベーコン'] },
+    { name: '焼きそば', ing: ['焼きそば麺', 'キャベツ', '豚肉'] },
+    { name: 'お好み焼き', ing: ['キャベツ', '卵', '小麦粉', '豚肉'] },
+    { name: '肉うどん', ing: ['うどん', '豚肉', 'ねぎ'] },
+    { name: 'カレーうどん', ing: ['うどん', '玉ねぎ', '豚肉'] },
+    { name: '冷奴', ing: ['豆腐', 'ねぎ'] },
+    { name: 'チキンサラダ', ing: ['鶏肉', 'レタス', 'トマト'] },
+    { name: 'きんぴらごぼう', ing: ['ごぼう', 'にんじん'] },
+    { name: 'ほうれん草のおひたし', ing: ['ほうれん草'] },
+    { name: '鮭のムニエル', ing: ['鮭', '小麦粉', 'バター'] },
+    { name: 'サバの味噌煮', ing: ['サバ'] },
+    { name: 'コーンスープ', ing: ['コーン', '牛乳'] },
+    { name: 'エビチリ', ing: ['エビ', 'ねぎ'] },
+    { name: '天津飯', ing: ['米', '卵', 'かにかま'] },
+    { name: 'おにぎり', ing: ['米'] },
+    { name: '目玉焼きトースト', ing: ['食パン', '卵'] },
+    { name: '豆腐ハンバーグ', ing: ['豆腐', 'ひき肉', '玉ねぎ'] }
+  ];
+
+  const haveIng = ing => items.some(i => i.count > 0 && (i.name.includes(ing) || ing.includes(i.name)));
+
+  function renderMenu() {
+    const el = $('menuArea');
+    if (items.filter(i => i.count > 0).length === 0) {
+      el.innerHTML = '<div class="shop-empty">在庫が空です。<br>在庫タブで食材を登録すると、作れる料理がここに表示されます。</div>';
+      return;
+    }
+    const canMake = [], almost = [];
+    for (const r of RECIPES) {
+      const missing = r.ing.filter(g => !haveIng(g));
+      if (missing.length === 0) canMake.push({ r, missing });
+      else if (missing.length === 1) almost.push({ r, missing });
+    }
+    const renderList = arr => arr.map(({ r, missing }) => `<li class="recipe">
+        <div class="r-name">${esc(r.name)}</div>
+        <div class="r-ing">材料: ${r.ing.map(g =>
+          missing.includes(g) ? `<span class="miss">${esc(g)}✕</span>` : `<span class="have">${esc(g)}✓</span>`
+        ).join(' ')}</div>
+      </li>`).join('');
+    let html = '';
+    if (canMake.length > 0) {
+      html += `<div class="recipe-group"><div class="section-label">いま作れる料理(${canMake.length}品)</div><ul class="recipes">${renderList(canMake)}</ul></div>`;
+    }
+    if (almost.length > 0) {
+      html += `<div class="recipe-group"><div class="section-label">あと1つ買えば作れる料理(${almost.length}品)</div><ul class="recipes">${renderList(almost)}</ul></div>`;
+    }
+    if (!html) {
+      html = '<div class="shop-empty">いまの在庫で作れる料理が見つかりませんでした。<br>食材が増えると候補が表示されます。</div>';
+    }
+    el.innerHTML = html;
+  }
+
+  function renderAll() {
+    renderAlertBanner();
+    renderInv();
+    renderShop();
+    renderMenu();
+  }
+
+  /* ---------------- 在庫タブの操作 ---------------- */
+  $('addForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('addName').value.trim();
+    if (!name) return;
+    const count = Math.max(0, parseInt($('addCount').value, 10) || 0);
+    const exist = items.find(i => i.name === name);
+    if (exist) {
+      exist.count += count;
+      toast(`${name} を ${count} 追加しました(計${exist.count})`);
+    } else {
+      items.push(newItem(name, count));
+      toast(`${name} を登録しました`);
+    }
+    $('addName').value = '';
+    $('addCount').value = '1';
+    save(); renderAll();
+  });
+
+  $('invList').addEventListener('click', e => {
+    const t = e.target;
+    const inc = t.dataset.inc, dec = t.dataset.dec, del = t.dataset.del, open = t.closest('[data-open]');
+    if (t.id === 'presetBtn') { addPresets(); return; }
+    if (inc) {
+      const i = items.find(x => x.id === inc);
+      if (i) { i.count = Math.min(99, i.count + 1); save(); renderAll(); }
+    } else if (dec) {
+      const i = items.find(x => x.id === dec);
+      if (i) { i.count = Math.max(0, i.count - 1); save(); renderAll(); }
+    } else if (del) {
+      const i = items.find(x => x.id === del);
+      if (i) {
+        confirmDialog(`「${i.name}」を削除しますか?`, () => {
+          items = items.filter(x => x.id !== del);
+          openId = null;
+          save(); renderAll();
+          toast(`${i.name} を削除しました`);
+        });
+      }
+    } else if (open) {
+      const id = open.dataset.open;
+      openId = (openId === id) ? null : id;
+      renderInv();
+    }
+  });
+
+  $('invList').addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.staple) {
+      const i = items.find(x => x.id === t.dataset.staple);
+      if (!i) return;
+      if (t.checked && items.filter(x => x.staple).length >= MAX_STAPLES) {
+        t.checked = false;
+        toast(`常備食材は最大${MAX_STAPLES}個までです`);
+        return;
+      }
+      i.staple = t.checked;
+      save(); renderAll();
+      openId = i.id; renderInv();
+    } else if (t.dataset.alert) {
+      const i = items.find(x => x.id === t.dataset.alert);
+      if (i) { i.alertOn = t.checked; save(); renderAll(); openId = i.id; renderInv(); }
+    } else if (t.dataset.threshold) {
+      const i = items.find(x => x.id === t.dataset.threshold);
+      if (i) { i.threshold = Math.max(0, parseInt(t.value, 10) || 0); save(); renderAll(); openId = i.id; renderInv(); }
+    } else if (t.dataset.buyqty) {
+      const i = items.find(x => x.id === t.dataset.buyqty);
+      if (i) { i.buyQty = Math.max(1, parseInt(t.value, 10) || 1); save(); renderAll(); openId = i.id; renderInv(); }
+    }
+  });
+
+  $('stapleChips').addEventListener('click', e => {
+    const id = e.target.closest('[data-quick]')?.dataset.quick;
+    if (!id) return;
+    const i = items.find(x => x.id === id);
+    if (i) {
+      i.count = Math.min(99, i.count + 1);
+      toast(`${i.name} +1(計${i.count})`);
+      save(); renderAll();
+    }
+  });
+
+  function addPresets() {
+    const presets = ['米', '卵', '牛乳', '食パン', '玉ねぎ', 'にんじん', 'じゃがいも', '豚肉', '鶏肉', '豆腐'];
+    for (const name of presets) {
+      if (!items.find(i => i.name === name)) {
+        const it = newItem(name, 1);
+        it.staple = items.filter(x => x.staple).length < MAX_STAPLES;
+        it.alertOn = true;
+        it.threshold = 1;
+        items.push(it);
+      }
+    }
+    save(); renderAll();
+    toast('おすすめ食材10個を登録しました(アラート:残1以下)');
+  }
+
+  $('resetBtn').addEventListener('click', () => {
+    confirmDialog('すべての在庫データを消去します。この操作は元に戻せません。よろしいですか?', () => {
+      items = []; openId = null;
+      save(); renderAll();
+      toast('データを消去しました');
+    });
+  });
+
+  /* ---------------- 買い物タブの操作 ---------------- */
+  $('shopList').addEventListener('click', e => {
+    const t = e.target;
+    if (t.dataset.qinc) {
+      const i = items.find(x => x.id === t.dataset.qinc);
+      if (i) { i.buyQty = Math.min(99, i.buyQty + 1); save(); renderShop(); }
+    } else if (t.dataset.qdec) {
+      const i = items.find(x => x.id === t.dataset.qdec);
+      if (i) { i.buyQty = Math.max(1, i.buyQty - 1); save(); renderShop(); }
+    } else if (t.dataset.bought) {
+      const i = items.find(x => x.id === t.dataset.bought);
+      if (i) {
+        i.count = Math.min(99, i.count + i.buyQty);
+        toast(`${i.name} を ${i.buyQty} 買いました(在庫${i.count})`);
+        save(); renderAll();
+      }
+    }
+  });
+
+  /* ---------------- 音声入力 ---------------- */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recog = null, listening = false;
+
+  const KANJI_NUM = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+  function toNum(s) {
+    if (KANJI_NUM[s] !== undefined) return KANJI_NUM[s];
+    const half = s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+    return parseInt(half, 10) || 1;
+  }
+
+  const ACTION_RE = /(追加して|追加|買ってきた|買った|買いました|入れといて|入れて|補充して|補充|プラス|使いました|使った|消費した|消費|減らして|マイナス|なくなった|切らした|切れた|全部使った|削除して|削除|消して)/;
+
+  function parseVoice(raw) {
+    let t = raw.replace(/[\s、。,.]/g, '');
+    const m = t.match(ACTION_RE);
+    if (!m) return null;
+    const word = m[1];
+    let action;
+    if (/なくなった|切らした|切れた|全部使った/.test(word)) action = 'zero';
+    else if (/削除|消して/.test(word)) action = 'del';
+    else if (/使|消費|減らして|マイナス/.test(word)) action = 'sub';
+    else action = 'add';
+
+    let head = t.slice(0, m.index).replace(/[をがはも]$/, '');
+    let num = 1;
+    const nm = head.match(/([0-9０-９]+|[一二三四五六七八九十])(個|本|パック|袋|枚|つ|コ|こ|丁|缶|束|箱|杯)?$/);
+    if (nm) {
+      num = toNum(nm[1]);
+      head = head.slice(0, nm.index);
+    }
+    head = head.replace(/[をがはも]$/, '').trim();
+    if (!head) return null;
+    return { name: head, num, action };
+  }
+
+  function applyVoice(p) {
+    let item = findByName(p.name);
+    switch (p.action) {
+      case 'add':
+        if (!item) {
+          item = newItem(p.name, p.num);
+          items.push(item);
+          toast(`🎤 ${item.name} を新規登録(${p.num})`);
+        } else {
+          item.count = Math.min(99, item.count + p.num);
+          toast(`🎤 ${item.name} +${p.num}(在庫${item.count})`);
+        }
+        break;
+      case 'sub':
+        if (!item) { toast(`「${p.name}」が見つかりません`); return; }
+        item.count = Math.max(0, item.count - p.num);
+        toast(`🎤 ${item.name} −${p.num}(在庫${item.count})`);
+        break;
+      case 'zero':
+        if (!item) { toast(`「${p.name}」が見つかりません`); return; }
+        item.count = 0;
+        toast(`🎤 ${item.name} を在庫0にしました`);
+        break;
+      case 'del':
+        if (!item) { toast(`「${p.name}」が見つかりません`); return; }
+        items = items.filter(x => x.id !== item.id);
+        toast(`🎤 ${item.name} を削除しました`);
+        break;
+    }
+    save(); renderAll();
+  }
+
+  $('voiceBtn').addEventListener('click', () => {
+    if (!SR) {
+      toast('このブラウザは音声入力に対応していません');
+      return;
+    }
+    if (listening && recog) { recog.stop(); return; }
+    recog = new SR();
+    recog.lang = 'ja-JP';
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+    listening = true;
+    $('voiceBtn').classList.add('listening');
+    $('voiceBtn').textContent = '🔴 聞き取り中…(タップで停止)';
+    recog.onresult = e => {
+      const text = e.results[0][0].transcript;
+      const p = parseVoice(text);
+      if (p) applyVoice(p);
+      else toast(`「${text}」を解釈できませんでした。「牛乳 2本 追加」のように話してください`);
+    };
+    recog.onerror = e => {
+      if (e.error === 'not-allowed') toast('マイクの使用が許可されていません。ブラウザの設定を確認してください');
+      else if (e.error !== 'aborted' && e.error !== 'no-speech') toast('音声を聞き取れませんでした。もう一度お試しください');
+      else if (e.error === 'no-speech') toast('音声が検出されませんでした');
+    };
+    recog.onend = () => {
+      listening = false;
+      $('voiceBtn').classList.remove('listening');
+      $('voiceBtn').textContent = '🎤 音声で入力';
+    };
+    try { recog.start(); } catch (err) { listening = false; }
+  });
+
+  /* ---------------- タブ切替 ---------------- */
+  document.querySelector('nav.tabs').addEventListener('click', e => {
+    const btn = e.target.closest('[data-page]');
+    if (!btn) return;
+    const page = btn.dataset.page;
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tabpage').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
+    window.scrollTo(0, 0);
+  });
+
+  renderAll();
+})();
+</script>
