@@ -160,12 +160,21 @@
     line-height: 1;
   }
   .counter .count {
-    min-width: 40px; text-align: center;
-    font-size: 17px; font-weight: 700;
+    width: 58px; text-align: center;
+    font-size: 16px; font-weight: 700;
     font-variant-numeric: tabular-nums;
+    font-family: inherit;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    padding: 8px 2px;
+    -moz-appearance: textfield;
   }
-  .counter .count.zero { color: var(--danger); }
-  .counter .count.low { color: var(--warn); }
+  .counter .count::-webkit-outer-spin-button,
+  .counter .count::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .counter .count.zero { color: var(--danger); border-color: var(--danger); }
+  .counter .count.low { color: var(--warn); border-color: var(--warn); }
   .item-editor {
     display: none;
     border-top: 1px solid var(--line);
@@ -644,7 +653,7 @@
           </div>
           <div class="counter">
             <button data-dec="${i.id}" aria-label="減らす">−</button>
-            <span class="count ${cls}">${fmt(i.count)}</span>
+            <input class="count ${cls}" type="number" min="0" max="99" step="0.25" inputmode="decimal" value="${fmt(i.count)}" data-count="${i.id}" aria-label="在庫数を直接入力">
             <button data-inc="${i.id}" aria-label="増やす">＋</button>
           </div>
         </div>
@@ -837,6 +846,14 @@
 
   $('invList').addEventListener('change', e => {
     const t = e.target;
+    if (t.dataset.count) {
+      const i = items.find(x => x.id === t.dataset.count);
+      if (i) {
+        i.count = r2(Math.min(99, Math.max(0, parseFloat(t.value) || 0)));
+        save(); renderAll();
+      }
+      return;
+    }
     if (t.dataset.staple) {
       const i = items.find(x => x.id === t.dataset.staple);
       if (!i) return;
