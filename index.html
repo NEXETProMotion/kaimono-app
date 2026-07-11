@@ -188,6 +188,15 @@
     background: var(--surface);
     color: var(--ink);
   }
+  .ed-row select {
+    font-size: 15px;
+    font-family: inherit;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+  }
   .switch { position: relative; width: 48px; height: 28px; flex: none; }
   .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
   .switch .knob {
@@ -468,7 +477,7 @@
     <div class="voice-row">
       <button class="voice-btn" id="voiceBtn">🎤 音声で入力</button>
     </div>
-    <p class="voice-hint">言い方の例:「牛乳 2本 追加」「卵 使った」「トマト なくなった」「じゃがいも 削除」</p>
+    <p class="voice-hint">言い方の例:「牛乳 2本 追加」「卵 使った」「キャベツ 半分 使った」「トマト なくなった」「じゃがいも 削除」</p>
 
     <div class="section-label">ワンタップ登録(常備食材)</div>
     <div class="chips" id="stapleChips"></div>
@@ -476,7 +485,7 @@
     <div class="section-label">食材を追加</div>
     <form class="add-form" id="addForm">
       <input type="text" id="addName" placeholder="品名(例:牛乳)" maxlength="30" autocomplete="off" aria-label="品名">
-      <input type="number" id="addCount" value="1" min="0" max="99" inputmode="numeric" aria-label="個数">
+      <input type="number" id="addCount" value="1" min="0" max="99" step="0.25" inputmode="decimal" aria-label="個数">
       <button type="submit">追加</button>
     </form>
 
@@ -529,14 +538,20 @@
   const esc = s => String(s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  // 小数(0.25/0.5刻み)対応: 浮動小数の誤差を丸める
+  const r2 = n => Math.round(n * 100) / 100;
+  const fmt = n => String(r2(n));
+  const stepOf = i => i.step || 1;
+
   const newItem = (name, count) => ({
     id: 'i' + Date.now() + Math.floor(Math.random() * 10000),
     name: name.trim(),
-    count: Math.max(0, count | 0),
+    count: Math.max(0, r2(Number(count) || 0)),
     staple: false,
     alertOn: false,
     threshold: 1,
-    buyQty: 1
+    buyQty: 1,
+    step: 1
   });
 
   const findByName = name => {
@@ -590,7 +605,7 @@
     const hits = items.filter(needsBuying);
     if (hits.length === 0) { el.classList.remove('show'); return; }
     el.innerHTML = '⚠️ <strong>補充が必要:</strong> ' +
-      hits.map(i => `${esc(i.name)}(残${i.count})`).join('、');
+      hits.map(i => `${esc(i.name)}(残${fmt(i.count)})`).join('、');
     el.classList.add('show');
   }
 
@@ -602,7 +617,7 @@
       return;
     }
     el.innerHTML = staples.map(i =>
-      `<button data-quick="${i.id}">${esc(i.name)} <span>+1</span></button>`).join('');
+      `<button data-quick="${i.id}">${esc(i.name)} <span>+${fmt(stepOf(i))}</span></button>`).join('');
   }
 
   function renderInv() {
@@ -623,13 +638,14 @@
             <div class="name">${esc(i.name)}</div>
             <div class="tags">
               ${i.staple ? '<span class="tag staple">常備</span>' : ''}
-              ${i.alertOn ? `<span class="tag alert-on">残${i.threshold}以下で通知</span>` : ''}
+              ${i.alertOn ? `<span class="tag alert-on">残${fmt(i.threshold)}以下で通知</span>` : ''}
+              ${stepOf(i) !== 1 ? `<span class="tag">${fmt(stepOf(i))}刻み</span>` : ''}
             </div>
           </div>
           <div class="counter">
-            <button data-dec="${i.id}" aria-label="1減らす">−</button>
-            <span class="count ${cls}">${i.count}</span>
-            <button data-inc="${i.id}" aria-label="1増やす">＋</button>
+            <button data-dec="${i.id}" aria-label="減らす">−</button>
+            <span class="count ${cls}">${fmt(i.count)}</span>
+            <button data-inc="${i.id}" aria-label="増やす">＋</button>
           </div>
         </div>
         <div class="item-editor">
@@ -638,16 +654,24 @@
             <span class="switch"><input type="checkbox" data-staple="${i.id}" ${i.staple ? 'checked' : ''}><span class="knob"></span></span>
           </div>
           <div class="ed-row">
+            <label>＋/−の増減単位<span class="desc">0.5=半分、0.25=1/4ずつ増減</span></label>
+            <select data-step="${i.id}">
+              <option value="1" ${stepOf(i) === 1 ? 'selected' : ''}>1</option>
+              <option value="0.5" ${stepOf(i) === 0.5 ? 'selected' : ''}>0.5</option>
+              <option value="0.25" ${stepOf(i) === 0.25 ? 'selected' : ''}>0.25</option>
+            </select>
+          </div>
+          <div class="ed-row">
             <label>アラート<span class="desc">在庫が下の数「以下」で通知・買い物リストへ</span></label>
             <span class="switch"><input type="checkbox" data-alert="${i.id}" ${i.alertOn ? 'checked' : ''}><span class="knob"></span></span>
           </div>
           <div class="ed-row">
             <label>アラートする在庫数(以下)</label>
-            <input type="number" min="0" max="99" inputmode="numeric" value="${i.threshold}" data-threshold="${i.id}">
+            <input type="number" min="0" max="99" step="0.25" inputmode="decimal" value="${fmt(i.threshold)}" data-threshold="${i.id}">
           </div>
           <div class="ed-row">
             <label>買い物時の購入数</label>
-            <input type="number" min="1" max="99" inputmode="numeric" value="${i.buyQty}" data-buyqty="${i.id}">
+            <input type="number" min="0.25" max="99" step="0.25" inputmode="decimal" value="${fmt(i.buyQty)}" data-buyqty="${i.id}">
           </div>
           <button class="ed-del" data-del="${i.id}">この食材を削除</button>
         </div>
@@ -670,11 +694,11 @@
     el.innerHTML = list.map(i => `<li class="shop-item">
       <div class="info">
         <div class="name">${esc(i.name)}</div>
-        <div class="reason ${i.count === 0 ? 'out' : 'low'}">${i.count === 0 ? '在庫切れ' : `残りわずか(残${i.count})`}</div>
+        <div class="reason ${i.count === 0 ? 'out' : 'low'}">${i.count === 0 ? '在庫切れ' : `残りわずか(残${fmt(i.count)})`}</div>
       </div>
       <div class="qty">
         <button data-qdec="${i.id}" aria-label="購入数を減らす">−</button>
-        <span class="n">${i.buyQty}</span>
+        <span class="n">${fmt(i.buyQty)}</span>
         <button data-qinc="${i.id}" aria-label="購入数を増やす">＋</button>
       </div>
       <button class="bought-btn" data-bought="${i.id}">買った</button>
@@ -770,11 +794,11 @@
     e.preventDefault();
     const name = $('addName').value.trim();
     if (!name) return;
-    const count = Math.max(0, parseInt($('addCount').value, 10) || 0);
+    const count = r2(Math.max(0, parseFloat($('addCount').value) || 0));
     const exist = items.find(i => i.name === name);
     if (exist) {
-      exist.count += count;
-      toast(`${name} を ${count} 追加しました(計${exist.count})`);
+      exist.count = r2(exist.count + count);
+      toast(`${name} を ${fmt(count)} 追加しました(計${fmt(exist.count)})`);
     } else {
       items.push(newItem(name, count));
       toast(`${name} を登録しました`);
@@ -790,10 +814,10 @@
     if (t.id === 'presetBtn') { addPresets(); return; }
     if (inc) {
       const i = items.find(x => x.id === inc);
-      if (i) { i.count = Math.min(99, i.count + 1); save(); renderAll(); }
+      if (i) { i.count = r2(Math.min(99, i.count + stepOf(i))); save(); renderAll(); }
     } else if (dec) {
       const i = items.find(x => x.id === dec);
-      if (i) { i.count = Math.max(0, i.count - 1); save(); renderAll(); }
+      if (i) { i.count = r2(Math.max(0, i.count - stepOf(i))); save(); renderAll(); }
     } else if (del) {
       const i = items.find(x => x.id === del);
       if (i) {
@@ -829,10 +853,13 @@
       if (i) { i.alertOn = t.checked; save(); renderAll(); openId = i.id; renderInv(); }
     } else if (t.dataset.threshold) {
       const i = items.find(x => x.id === t.dataset.threshold);
-      if (i) { i.threshold = Math.max(0, parseInt(t.value, 10) || 0); save(); renderAll(); openId = i.id; renderInv(); }
+      if (i) { i.threshold = r2(Math.max(0, parseFloat(t.value) || 0)); save(); renderAll(); openId = i.id; renderInv(); }
     } else if (t.dataset.buyqty) {
       const i = items.find(x => x.id === t.dataset.buyqty);
-      if (i) { i.buyQty = Math.max(1, parseInt(t.value, 10) || 1); save(); renderAll(); openId = i.id; renderInv(); }
+      if (i) { i.buyQty = r2(Math.max(0.25, parseFloat(t.value) || 1)); save(); renderAll(); openId = i.id; renderInv(); }
+    } else if (t.dataset.step) {
+      const i = items.find(x => x.id === t.dataset.step);
+      if (i) { i.step = parseFloat(t.value) || 1; save(); renderAll(); openId = i.id; renderInv(); }
     }
   });
 
@@ -841,8 +868,8 @@
     if (!id) return;
     const i = items.find(x => x.id === id);
     if (i) {
-      i.count = Math.min(99, i.count + 1);
-      toast(`${i.name} +1(計${i.count})`);
+      i.count = r2(Math.min(99, i.count + stepOf(i)));
+      toast(`${i.name} +${fmt(stepOf(i))}(計${fmt(i.count)})`);
       save(); renderAll();
     }
   });
@@ -875,15 +902,15 @@
     const t = e.target;
     if (t.dataset.qinc) {
       const i = items.find(x => x.id === t.dataset.qinc);
-      if (i) { i.buyQty = Math.min(99, i.buyQty + 1); save(); renderShop(); }
+      if (i) { i.buyQty = r2(Math.min(99, i.buyQty + stepOf(i))); save(); renderShop(); }
     } else if (t.dataset.qdec) {
       const i = items.find(x => x.id === t.dataset.qdec);
-      if (i) { i.buyQty = Math.max(1, i.buyQty - 1); save(); renderShop(); }
+      if (i) { i.buyQty = r2(Math.max(stepOf(i), i.buyQty - stepOf(i))); save(); renderShop(); }
     } else if (t.dataset.bought) {
       const i = items.find(x => x.id === t.dataset.bought);
       if (i) {
-        i.count = Math.min(99, i.count + i.buyQty);
-        toast(`${i.name} を ${i.buyQty} 買いました(在庫${i.count})`);
+        i.count = r2(Math.min(99, i.count + i.buyQty));
+        toast(`${i.name} を ${fmt(i.buyQty)} 買いました(在庫${fmt(i.count)})`);
         save(); renderAll();
       }
     }
@@ -895,9 +922,10 @@
 
   const KANJI_NUM = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
   function toNum(s) {
+    if (s === '半分' || s === '半') return 0.5;
     if (KANJI_NUM[s] !== undefined) return KANJI_NUM[s];
-    const half = s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
-    return parseInt(half, 10) || 1;
+    const half = s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[．]/g, '.');
+    return r2(parseFloat(half)) || 1;
   }
 
   const ACTION_RE = /(追加して|追加|買ってきた|買った|買いました|入れといて|入れて|補充して|補充|プラス|使いました|使った|消費した|消費|減らして|マイナス|なくなった|切らした|切れた|全部使った|削除して|削除|消して)/;
@@ -915,7 +943,7 @@
 
     let head = t.slice(0, m.index).replace(/[をがはも]$/, '');
     let num = 1;
-    const nm = head.match(/([0-9０-９]+|[一二三四五六七八九十])(個|本|パック|袋|枚|つ|コ|こ|丁|缶|束|箱|杯)?$/);
+    const nm = head.match(/([0-9０-９]+(?:[.．][0-9０-９]+)?|[一二三四五六七八九十]|半分|半)(個|本|パック|袋|枚|つ|コ|こ|丁|缶|束|箱|杯)?$/);
     if (nm) {
       num = toNum(nm[1]);
       head = head.slice(0, nm.index);
@@ -932,16 +960,16 @@
         if (!item) {
           item = newItem(p.name, p.num);
           items.push(item);
-          toast(`🎤 ${item.name} を新規登録(${p.num})`);
+          toast(`🎤 ${item.name} を新規登録(${fmt(p.num)})`);
         } else {
-          item.count = Math.min(99, item.count + p.num);
-          toast(`🎤 ${item.name} +${p.num}(在庫${item.count})`);
+          item.count = r2(Math.min(99, item.count + p.num));
+          toast(`🎤 ${item.name} +${fmt(p.num)}(在庫${fmt(item.count)})`);
         }
         break;
       case 'sub':
         if (!item) { toast(`「${p.name}」が見つかりません`); return; }
-        item.count = Math.max(0, item.count - p.num);
-        toast(`🎤 ${item.name} −${p.num}(在庫${item.count})`);
+        item.count = r2(Math.max(0, item.count - p.num));
+        toast(`🎤 ${item.name} −${fmt(p.num)}(在庫${fmt(item.count)})`);
         break;
       case 'zero':
         if (!item) { toast(`「${p.name}」が見つかりません`); return; }
