@@ -113,6 +113,27 @@
   }
   .voice-hint { font-size: 11px; color: var(--ink-soft); margin: -8px 0 14px; line-height: 1.6; }
 
+  /* ---- step selector ---- */
+  .step-seg { display: flex; gap: 6px; margin-bottom: 16px; }
+  .step-seg button {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 10px 0;
+    font-size: 15px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .step-seg button.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
   /* ---- quick add ---- */
   .section-label {
     font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
@@ -488,6 +509,13 @@
     </div>
     <p class="voice-hint">言い方の例:「牛乳 2本 追加」「卵 使った」「キャベツ 半分 使った」「トマト なくなった」「じゃがいも 削除」</p>
 
+    <div class="section-label">＋/−ボタンの増減単位</div>
+    <div class="step-seg" id="stepSeg">
+      <button data-stepv="1">1</button>
+      <button data-stepv="0.5">0.5</button>
+      <button data-stepv="0.25">0.25</button>
+    </div>
+
     <div class="section-label">ワンタップ登録(常備食材)</div>
     <div class="chips" id="stapleChips"></div>
 
@@ -550,7 +578,9 @@
   // 小数(0.25/0.5刻み)対応: 浮動小数の誤差を丸める
   const r2 = n => Math.round(n * 100) / 100;
   const fmt = n => String(r2(n));
-  const stepOf = i => i.step || 1;
+  // ＋/−ボタンの増減単位(全体設定)
+  let uiStep = parseFloat(localStorage.getItem('pantry-step-v1')) || 1;
+  const stepOf = () => uiStep;
 
   const newItem = (name, count) => ({
     id: 'i' + Date.now() + Math.floor(Math.random() * 10000),
@@ -559,8 +589,7 @@
     staple: false,
     alertOn: false,
     threshold: 1,
-    buyQty: 1,
-    step: 1
+    buyQty: 1
   });
 
   const findByName = name => {
@@ -648,7 +677,6 @@
             <div class="tags">
               ${i.staple ? '<span class="tag staple">常備</span>' : ''}
               ${i.alertOn ? `<span class="tag alert-on">残${fmt(i.threshold)}以下で通知</span>` : ''}
-              ${stepOf(i) !== 1 ? `<span class="tag">${fmt(stepOf(i))}刻み</span>` : ''}
             </div>
           </div>
           <div class="counter">
@@ -661,14 +689,6 @@
           <div class="ed-row">
             <label>常備食材にする<span class="desc">ワンタップ登録に表示(最大${MAX_STAPLES}個)</span></label>
             <span class="switch"><input type="checkbox" data-staple="${i.id}" ${i.staple ? 'checked' : ''}><span class="knob"></span></span>
-          </div>
-          <div class="ed-row">
-            <label>＋/−の増減単位<span class="desc">0.5=半分、0.25=1/4ずつ増減</span></label>
-            <select data-step="${i.id}">
-              <option value="1" ${stepOf(i) === 1 ? 'selected' : ''}>1</option>
-              <option value="0.5" ${stepOf(i) === 0.5 ? 'selected' : ''}>0.5</option>
-              <option value="0.25" ${stepOf(i) === 0.25 ? 'selected' : ''}>0.25</option>
-            </select>
           </div>
           <div class="ed-row">
             <label>アラート<span class="desc">在庫が下の数「以下」で通知・買い物リストへ</span></label>
@@ -874,9 +894,6 @@
     } else if (t.dataset.buyqty) {
       const i = items.find(x => x.id === t.dataset.buyqty);
       if (i) { i.buyQty = r2(Math.max(0.25, parseFloat(t.value) || 1)); save(); renderAll(); openId = i.id; renderInv(); }
-    } else if (t.dataset.step) {
-      const i = items.find(x => x.id === t.dataset.step);
-      if (i) { i.step = parseFloat(t.value) || 1; save(); renderAll(); openId = i.id; renderInv(); }
     }
   });
 
@@ -1034,6 +1051,21 @@
     try { recog.start(); } catch (err) { listening = false; }
   });
 
+  /* ---------------- 増減単位の切替 ---------------- */
+  function renderStepSeg() {
+    document.querySelectorAll('#stepSeg button').forEach(b =>
+      b.classList.toggle('active', parseFloat(b.dataset.stepv) === uiStep));
+  }
+  $('stepSeg').addEventListener('click', e => {
+    const v = e.target.dataset.stepv;
+    if (!v) return;
+    uiStep = parseFloat(v);
+    localStorage.setItem('pantry-step-v1', String(uiStep));
+    renderStepSeg();
+    renderChips();
+    toast(`＋/−の増減単位を ${fmt(uiStep)} にしました`);
+  });
+
   /* ---------------- タブ切替 ---------------- */
   document.querySelector('nav.tabs').addEventListener('click', e => {
     const btn = e.target.closest('[data-page]');
@@ -1044,6 +1076,7 @@
     window.scrollTo(0, 0);
   });
 
+  renderStepSeg();
   renderAll();
 })();
 </script>
