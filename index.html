@@ -645,23 +645,22 @@
   <!-- ============ 設定タブ ============ -->
   <section class="tabpage" id="page-settings">
     <h1>設定</h1>
-    <p class="sub">AI機能(写真で食材認識・AI献立提案)には、Googleの無料APIキーが必要です。キーはこの端末内にのみ保存されます。</p>
+    <p class="sub">AI機能(写真で食材認識・AI献立提案)は、設定なしでそのまま使えます。以下は「自分専用のAI枠を使いたい」上級者向けの任意設定です。</p>
 
     <div class="set-card">
-      <label for="gkeyInput">Gemini APIキー(無料)</label>
-      <input type="password" id="gkeyInput" placeholder="AIza..." autocomplete="off">
+      <label for="gkeyInput">自分のGemini APIキー(任意)</label>
+      <input type="password" id="gkeyInput" placeholder="AIza...(空欄でOK)" autocomplete="off">
       <button class="set-btn" id="gkeySaveBtn">保存して接続テスト</button>
       <p class="key-status" id="gkeyStatus"></p>
       <details class="howto">
-        <summary>無料キーの取得手順(約5分・カード登録不要)</summary>
-        <ol>
-          <li>ブラウザで aistudio.google.com/apikey を開く</li>
-          <li>Googleアカウントでログイン</li>
-          <li>「APIキーを作成(Create API key)」を押す</li>
-          <li>表示された「AIza」で始まるキーをコピーして上に貼り付け</li>
+        <summary>自分のキーを使うと何が違う?/取得手順</summary>
+        <ol style="list-style:disc">
+          <li>通常はこの欄は空欄でOK(みんなで共有のAI枠を使います)</li>
+          <li>共有枠が混んでいて使えない時などに、自分専用のキーを入れると自分の枠で使えます</li>
+          <li>取得: aistudio.google.com/apikey → ログイン →「APIキーを作成」→「AIza」で始まるキーをコピーして上に貼付</li>
         </ol>
       </details>
-      <p class="desc">※無料枠は1日あたりの回数制限があります(家庭利用なら十分)。無料枠では送信した写真・テキストがGoogleのAI改善に利用される場合があります。</p>
+      <p class="desc">※キーはこの端末内にのみ保存されます。送信した写真・テキストはGoogleのAI改善に利用される場合があります。</p>
     </div>
 
     <div class="section-label">バックアップ</div>
@@ -1192,27 +1191,37 @@
     try { recog.start(); } catch (err) { listening = false; }
   });
 
-  /* ================= AI (Gemini API 無料枠) ================= */
+  /* ================= AI (Gemini API) ================= */
+  // 共通の中継サーバー(キーはサーバー側に秘匿)。キー未設定でもAIが使える。
+  const WORKER_URL = 'https://kaimono-ai.nexetpromotion-kitamura.workers.dev';
   const GKEY = 'pantry-gemini-key-v1';
   const GEMINI_MODEL = 'gemini-2.5-flash';
   const getGKey = () => localStorage.getItem(GKEY) || '';
 
   async function callGemini(parts, maxTokens) {
     const key = getGKey();
-    if (!key) throw new Error('APIキーが未設定です');
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(key), {
+    const genConfig = { maxOutputTokens: maxTokens || 1024, temperature: 0.4 };
+    let url, sendBody;
+    if (key) {
+      // 自分のキーがある場合はGeminiへ直接(自分の無料枠を使う)
+      url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL +
+            ':generateContent?key=' + encodeURIComponent(key);
+      sendBody = { contents: [{ parts }], generationConfig: genConfig };
+    } else {
+      // キーがない場合は共通の中継サーバー経由(設定不要でAIが使える)
+      url = WORKER_URL;
+      sendBody = { model: GEMINI_MODEL, contents: [{ parts }], generationConfig: genConfig };
+    }
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { maxOutputTokens: maxTokens || 1024, temperature: 0.4 }
-      })
+      body: JSON.stringify(sendBody)
     });
     if (!res.ok) {
       let msg = 'エラー(HTTP ' + res.status + ')';
-      if (res.status === 400 || res.status === 403) msg = 'APIキーが無効です。設定を確認してください';
-      else if (res.status === 429) msg = '無料枠の上限に達しました。時間をおいて再試行してください';
-      else if (res.status === 503) msg = 'AIが混雑しています。少し待って再試行してください';
+      if (res.status === 400 || res.status === 403) msg = key ? 'APIキーが無効です。設定を確認してください' : 'サーバーでエラーが発生しました';
+      else if (res.status === 429) msg = 'AIの利用が混み合っています。時間をおいて再試行してください';
+      else if (res.status === 502 || res.status === 503) msg = 'AIが混雑しています。少し待って再試行してください';
       throw new Error(msg);
     }
     const data = await res.json();
@@ -1261,11 +1270,6 @@
     const f = e.target.files[0];
     e.target.value = '';
     if (!f || photoBusy) return;
-    if (!getGKey()) {
-      toast('先に「設定」タブでGemini APIキー(無料)を登録してください');
-      switchTab('settings');
-      return;
-    }
     photoBusy = true;
     try {
       toast('🤖 写真を解析中…(数秒かかります)');
@@ -1330,11 +1334,6 @@
 
   /* ---------------- AI献立提案 ---------------- */
   $('aiMenuBtn').addEventListener('click', async () => {
-    if (!getGKey()) {
-      toast('先に「設定」タブでGemini APIキー(無料)を登録してください');
-      switchTab('settings');
-      return;
-    }
     const stockArr = items.filter(i => i.count > 0);
     if (stockArr.length === 0) { toast('在庫が空です。先に食材を登録してください'); return; }
     const btn = $('aiMenuBtn');
@@ -1452,7 +1451,7 @@
   $('gkeyInput').value = getGKey();
   if (getGKey()) {
     $('gkeyStatus').className = 'key-status ok';
-    $('gkeyStatus').textContent = '✓ キー登録済み(AI機能オン)';
+    $('gkeyStatus').textContent = '✓ 自分のキーを使用中';
   }
   renderStepSeg();
   renderAll();
