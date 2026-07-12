@@ -1195,12 +1195,12 @@
   // 共通の中継サーバー(キーはサーバー側に秘匿)。キー未設定でもAIが使える。
   const WORKER_URL = 'https://kaimono-ai.nexetpromotion-kitamura.workers.dev';
   const GKEY = 'pantry-gemini-key-v1';
-  const GEMINI_MODEL = 'gemini-2.5-flash';
+  const GEMINI_MODEL = 'gemini-flash-latest';
   const getGKey = () => localStorage.getItem(GKEY) || '';
 
   async function callGemini(parts, maxTokens) {
     const key = getGKey();
-    const genConfig = { maxOutputTokens: maxTokens || 1024, temperature: 0.4 };
+    const genConfig = { maxOutputTokens: maxTokens || 1024, temperature: 0.4, thinkingConfig: { thinkingBudget: 0 } };
     let url, sendBody;
     if (key) {
       // 自分のキーがある場合はGeminiへ直接(自分の無料枠を使う)
