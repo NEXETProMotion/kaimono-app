@@ -1,3 +1,5 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>食材在庫&買い物リスト</title>
 <style>
   :root {
@@ -369,6 +371,91 @@
   .recipe .miss { color: var(--danger); font-weight: 600; }
   .recipe-note { font-size: 11px; color: var(--ink-soft); line-height: 1.7; margin-top: 16px; }
 
+  /* ---- settings ---- */
+  .set-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .set-card label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .set-card input[type="password"], .set-card input[type="text"] {
+    width: 100%;
+    font-size: 15px;
+    font-family: inherit;
+    padding: 11px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .set-card .desc { font-size: 11px; color: var(--ink-soft); line-height: 1.7; margin: 8px 0 0; }
+  .set-btn {
+    width: 100%;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 0;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  .set-btn.ghost { background: none; border: 1px solid var(--line); color: var(--ink); }
+  .key-status { font-size: 13px; font-weight: 700; margin: 10px 0 0; text-align: center; }
+  .key-status.ok { color: var(--ok); }
+  .key-status.ng { color: var(--danger); }
+  details.howto { margin-top: 10px; }
+  details.howto summary { font-size: 12px; color: var(--accent); cursor: pointer; }
+  details.howto ol { font-size: 12px; color: var(--ink-soft); line-height: 1.9; padding-left: 18px; margin: 8px 0 0; }
+
+  /* ---- AI menu / photo ---- */
+  .ai-btn {
+    width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 0;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-bottom: 14px;
+  }
+  .ai-btn:disabled { opacity: 0.6; }
+  .ai-card {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .ai-card .r-name { font-size: 15px; font-weight: 700; }
+  .ai-card .r-ing { font-size: 12px; color: var(--ink-soft); margin-top: 4px; line-height: 1.7; }
+  .ai-card .tip { font-size: 12px; margin-top: 6px; line-height: 1.6; }
+  .photo-mode { display: flex; gap: 8px; margin-bottom: 12px; }
+  .photo-mode button {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink-soft);
+    border-radius: 10px;
+    padding: 10px 0;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .photo-mode button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .photo-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .photo-row input[type="checkbox"] { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+  .photo-row input[type="text"] { flex: 1; min-width: 0; font-size: 15px; font-family: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  .photo-row input[type="number"] { width: 66px; font-size: 15px; font-family: inherit; text-align: center; padding: 8px 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+
   /* ---- toast ---- */
   .toast {
     position: fixed;
@@ -506,6 +593,9 @@
 
     <div class="voice-row">
       <button class="voice-btn" id="voiceBtn">🎤 音声で入力</button>
+      <label class="voice-btn" id="photoBtn">📷 写真で認識
+        <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none">
+      </label>
     </div>
     <p class="voice-hint">言い方の例:「牛乳 2本 追加」「卵 使った」「キャベツ 半分 使った」「トマト なくなった」「じゃがいも 削除」</p>
 
@@ -545,16 +635,67 @@
   <!-- ============ 献立タブ ============ -->
   <section class="tabpage" id="page-menu">
     <h1>今日の献立</h1>
-    <p class="sub">いまの在庫で作れる料理を内蔵レシピ集(約40品)から探します。</p>
+    <p class="sub">AI提案(要APIキー)と、内蔵レシピ集(約40品)からの検索が使えます。</p>
+    <button class="ai-btn" id="aiMenuBtn">🤖 AIに献立を提案してもらう</button>
+    <div id="aiMenuArea"></div>
     <div id="menuArea"></div>
     <p class="recipe-note">※品名の部分一致で判定しています(例: 在庫「豚肉」はレシピの「豚肉」に一致)。調味料(醤油・塩など)は常備されている前提で判定に含めていません。</p>
   </section>
+
+  <!-- ============ 設定タブ ============ -->
+  <section class="tabpage" id="page-settings">
+    <h1>設定</h1>
+    <p class="sub">AI機能(写真で食材認識・AI献立提案)には、Googleの無料APIキーが必要です。キーはこの端末内にのみ保存されます。</p>
+
+    <div class="set-card">
+      <label for="gkeyInput">Gemini APIキー(無料)</label>
+      <input type="password" id="gkeyInput" placeholder="AIza..." autocomplete="off">
+      <button class="set-btn" id="gkeySaveBtn">保存して接続テスト</button>
+      <p class="key-status" id="gkeyStatus"></p>
+      <details class="howto">
+        <summary>無料キーの取得手順(約5分・カード登録不要)</summary>
+        <ol>
+          <li>ブラウザで aistudio.google.com/apikey を開く</li>
+          <li>Googleアカウントでログイン</li>
+          <li>「APIキーを作成(Create API key)」を押す</li>
+          <li>表示された「AIza」で始まるキーをコピーして上に貼り付け</li>
+        </ol>
+      </details>
+      <p class="desc">※無料枠は1日あたりの回数制限があります(家庭利用なら十分)。無料枠では送信した写真・テキストがGoogleのAI改善に利用される場合があります。</p>
+    </div>
+
+    <div class="section-label">バックアップ</div>
+    <div class="set-card">
+      <button class="set-btn ghost" id="backupBtn">📤 データを書き出す(ファイル保存)</button>
+      <label class="set-btn ghost" style="display:block; text-align:center; box-sizing:border-box">📥 データを読み込む(復元)
+        <input type="file" accept=".json,application/json" id="restoreInput" style="display:none">
+      </label>
+      <p class="desc">書き出したファイルをスマホの「ファイル」やGoogle Driveに保管しておけば、ブラウザのデータ消去や機種変更後も復元できます。</p>
+    </div>
+  </section>
+</div>
+
+<!-- 写真認識の結果確認シート -->
+<div class="modal-overlay" id="photoOverlay">
+  <div class="modal" style="max-width:400px; max-height:80vh; overflow-y:auto">
+    <p class="m-msg" style="font-weight:700">📷 写真から見つかった食材</p>
+    <div class="photo-mode">
+      <button id="pmAdd" class="active">買ってきた(在庫に追加)</button>
+      <button id="pmSub">使った(在庫から減らす)</button>
+    </div>
+    <div id="photoRows"></div>
+    <div class="m-btns" style="margin-top:14px">
+      <button class="m-cancel" id="photoCancel">キャンセル</button>
+      <button class="m-ok" id="photoApply" style="background:var(--accent); border-color:var(--accent)">反映する</button>
+    </div>
+  </div>
 </div>
 
 <nav class="tabs">
   <button data-page="stock" class="active"><span class="ico">🥕</span>在庫</button>
   <button data-page="shop"><span class="ico">🛒</span>買い物<span class="badge" id="shopBadge"></span></button>
   <button data-page="menu"><span class="ico">🍳</span>献立</button>
+  <button data-page="settings"><span class="ico">⚙️</span>設定</button>
 </nav>
 
 <script>
@@ -1051,6 +1192,236 @@
     try { recog.start(); } catch (err) { listening = false; }
   });
 
+  /* ================= AI (Gemini API 無料枠) ================= */
+  const GKEY = 'pantry-gemini-key-v1';
+  const GEMINI_MODEL = 'gemini-2.5-flash';
+  const getGKey = () => localStorage.getItem(GKEY) || '';
+
+  async function callGemini(parts, maxTokens) {
+    const key = getGKey();
+    if (!key) throw new Error('APIキーが未設定です');
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(key), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: { maxOutputTokens: maxTokens || 1024, temperature: 0.4 }
+      })
+    });
+    if (!res.ok) {
+      let msg = 'エラー(HTTP ' + res.status + ')';
+      if (res.status === 400 || res.status === 403) msg = 'APIキーが無効です。設定を確認してください';
+      else if (res.status === 429) msg = '無料枠の上限に達しました。時間をおいて再試行してください';
+      else if (res.status === 503) msg = 'AIが混雑しています。少し待って再試行してください';
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const txt = (((data.candidates || [])[0] || {}).content || {}).parts;
+    const text = (txt || []).map(p => p.text || '').join('');
+    if (!text) throw new Error('AIから応答がありませんでした');
+    return text;
+  }
+
+  function parseJsonArr(text) {
+    let t = text.trim();
+    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fence) t = fence[1].trim();
+    const s = t.indexOf('['), e = t.lastIndexOf(']');
+    if (s === -1 || e === -1) return null;
+    try { const a = JSON.parse(t.slice(s, e + 1)); return Array.isArray(a) ? a : null; } catch (err) { return null; }
+  }
+
+  function resizePhoto(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale);
+          c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('画像を読み込めませんでした'));
+        img.src = fr.result;
+      };
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(file);
+    });
+  }
+
+  /* ---------------- 写真で食材認識 ---------------- */
+  const PHOTO_PROMPT = 'この写真に写っている食品・食材・飲料をすべて挙げてください。JSON配列のみを出力してください(説明文・コードブロック不要): [{"name":"一般的な食材名(日本語)","count":おおよその個数(数値)}] 食品以外の物や重複は含めないでください。';
+  let photoMode = 'add';
+  let photoBusy = false;
+
+  $('photoInput').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f || photoBusy) return;
+    if (!getGKey()) {
+      toast('先に「設定」タブでGemini APIキー(無料)を登録してください');
+      switchTab('settings');
+      return;
+    }
+    photoBusy = true;
+    try {
+      toast('🤖 写真を解析中…(数秒かかります)');
+      const dataUrl = await resizePhoto(f, 1024, 0.8);
+      const out = await callGemini([
+        { inline_data: { mime_type: 'image/jpeg', data: dataUrl.split(',')[1] } },
+        { text: PHOTO_PROMPT }
+      ], 1024);
+      const arr = parseJsonArr(out);
+      if (!arr || arr.length === 0) {
+        toast('食材を検出できませんでした。明るい場所で撮り直してみてください');
+        return;
+      }
+      openPhotoSheet(arr.slice(0, 20));
+    } catch (err) {
+      toast('写真認識に失敗: ' + err.message);
+    } finally {
+      photoBusy = false;
+    }
+  });
+
+  function openPhotoSheet(arr) {
+    photoMode = 'add';
+    $('pmAdd').classList.add('active');
+    $('pmSub').classList.remove('active');
+    $('photoRows').innerHTML = arr.map((x, idx) => `<div class="photo-row">
+      <input type="checkbox" checked aria-label="この食材を反映する">
+      <input type="text" value="${esc(String(x.name || '').slice(0, 20))}" maxlength="20" aria-label="食材名">
+      <input type="number" value="${fmt(Math.max(0.25, Number(x.count) || 1))}" min="0.25" max="99" step="0.25" inputmode="decimal" aria-label="個数">
+    </div>`).join('');
+    $('photoOverlay').classList.add('show');
+  }
+
+  $('pmAdd').addEventListener('click', () => { photoMode = 'add'; $('pmAdd').classList.add('active'); $('pmSub').classList.remove('active'); });
+  $('pmSub').addEventListener('click', () => { photoMode = 'sub'; $('pmSub').classList.add('active'); $('pmAdd').classList.remove('active'); });
+  $('photoCancel').addEventListener('click', () => $('photoOverlay').classList.remove('show'));
+
+  $('photoApply').addEventListener('click', () => {
+    const rows = $('photoRows').querySelectorAll('.photo-row');
+    let applied = 0;
+    rows.forEach(row => {
+      const chk = row.querySelector('input[type="checkbox"]');
+      if (!chk.checked) return;
+      const name = row.querySelector('input[type="text"]').value.trim();
+      const num = r2(Math.max(0.25, parseFloat(row.querySelector('input[type="number"]').value) || 1));
+      if (!name) return;
+      let item = findByName(name);
+      if (photoMode === 'add') {
+        if (!item) { item = newItem(name, num); items.push(item); }
+        else item.count = r2(Math.min(99, item.count + num));
+        applied++;
+      } else {
+        if (!item) return;
+        item.count = r2(Math.max(0, item.count - num));
+        applied++;
+      }
+    });
+    $('photoOverlay').classList.remove('show');
+    save(); renderAll();
+    toast(photoMode === 'add' ? `📷 ${applied}件を在庫に追加しました` : `📷 ${applied}件の在庫を減らしました`);
+  });
+
+  /* ---------------- AI献立提案 ---------------- */
+  $('aiMenuBtn').addEventListener('click', async () => {
+    if (!getGKey()) {
+      toast('先に「設定」タブでGemini APIキー(無料)を登録してください');
+      switchTab('settings');
+      return;
+    }
+    const stockArr = items.filter(i => i.count > 0);
+    if (stockArr.length === 0) { toast('在庫が空です。先に食材を登録してください'); return; }
+    const btn = $('aiMenuBtn');
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = '🤖 考え中…(数秒かかります)';
+    try {
+      const stock = stockArr.map(i => `${i.name}:${fmt(i.count)}`).join('、');
+      const out = await callGemini([{ text:
+        'あなたは家庭料理のアドバイザーです。次の食材在庫(名前:残数)で作れる夕食の献立を3つ提案してください。残数が少ない食材や使いかけ(小数)の食材を優先的に使ってください。調味料は家にあるものとします。\n在庫: ' + stock +
+        '\nJSON配列のみを出力(説明文・コードブロック不要): [{"title":"料理名","uses":["使う在庫食材"],"missing":["買い足しが必要な材料(なければ空配列)"],"tip":"作り方のポイント(60文字以内)"}]'
+      }], 2048);
+      const arr = parseJsonArr(out);
+      if (!arr) { toast('AIの回答を解釈できませんでした。もう一度お試しください'); return; }
+      $('aiMenuArea').innerHTML =
+        '<div class="section-label">AIの提案</div>' +
+        arr.slice(0, 5).map(m => `<div class="ai-card">
+          <div class="r-name">🤖 ${esc(m.title || '')}</div>
+          <div class="r-ing">使う食材: ${(m.uses || []).map(u => `<span class="have">${esc(u)}✓</span>`).join(' ') || 'ー'}
+          ${(m.missing || []).length ? '<br>買い足し: ' + (m.missing || []).map(u => `<span class="miss">${esc(u)}</span>`).join('、') : ''}</div>
+          ${m.tip ? `<div class="tip">💡 ${esc(m.tip)}</div>` : ''}
+        </div>`).join('');
+    } catch (err) {
+      toast('AI献立の取得に失敗: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  });
+
+  /* ---------------- 設定: APIキー ---------------- */
+  $('gkeySaveBtn').addEventListener('click', async () => {
+    const key = $('gkeyInput').value.trim();
+    const st = $('gkeyStatus');
+    if (!key) {
+      localStorage.removeItem(GKEY);
+      st.className = 'key-status ng';
+      st.textContent = 'キー未設定(AI機能はオフ)';
+      return;
+    }
+    localStorage.setItem(GKEY, key);
+    st.className = 'key-status';
+    st.textContent = '接続テスト中…';
+    try {
+      await callGemini([{ text: 'テストです。OKとだけ返答してください。' }], 16);
+      st.className = 'key-status ok';
+      st.textContent = '✓ 接続成功!AI機能が使えます';
+      toast('APIキーを保存しました');
+    } catch (err) {
+      st.className = 'key-status ng';
+      st.textContent = '✕ ' + err.message;
+    }
+  });
+
+  /* ---------------- 設定: バックアップ ---------------- */
+  $('backupBtn').addEventListener('click', () => {
+    const data = { app: 'kaimono-list', version: 1, exportedAt: new Date().toISOString(), items };
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'kaimono-backup_' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('バックアップを書き出しました(ファイルに保存してください)');
+  });
+
+  $('restoreInput').addEventListener('change', e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        const data = JSON.parse(fr.result);
+        if (!data || !Array.isArray(data.items)) throw new Error('bad format');
+        confirmDialog(`バックアップ(${data.items.length}件)を読み込みます。現在のデータは置き換えられます。よろしいですか?`, () => {
+          items = data.items;
+          save(); renderAll();
+          toast('復元しました(' + items.length + '件)');
+        });
+      } catch (err) {
+        toast('読み込めませんでした。このアプリで書き出したバックアップファイルを選んでください');
+      }
+    };
+    fr.readAsText(f);
+  });
+
   /* ---------------- 増減単位の切替 ---------------- */
   function renderStepSeg() {
     document.querySelectorAll('#stepSeg button').forEach(b =>
@@ -1067,15 +1438,22 @@
   });
 
   /* ---------------- タブ切替 ---------------- */
-  document.querySelector('nav.tabs').addEventListener('click', e => {
-    const btn = e.target.closest('[data-page]');
-    if (!btn) return;
-    const page = btn.dataset.page;
-    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  function switchTab(page) {
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
     document.querySelectorAll('.tabpage').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
     window.scrollTo(0, 0);
+  }
+  document.querySelector('nav.tabs').addEventListener('click', e => {
+    const btn = e.target.closest('[data-page]');
+    if (btn) switchTab(btn.dataset.page);
   });
 
+  /* ---------------- 初期化 ---------------- */
+  $('gkeyInput').value = getGKey();
+  if (getGKey()) {
+    $('gkeyStatus').className = 'key-status ok';
+    $('gkeyStatus').textContent = '✓ キー登録済み(AI機能オン)';
+  }
   renderStepSeg();
   renderAll();
 })();
