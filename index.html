@@ -156,35 +156,25 @@
   .chips .empty-note { font-size: 12px; color: var(--ink-soft); padding: 6px 2px; }
 
   /* ---- inventory list ---- */
-  ul.inv { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  ul.inv { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: start; }
+  ul.inv .inv-empty { grid-column: 1 / -1; }
   li.item {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
     overflow: hidden;
   }
-  .item-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
-  .item-row .name-area { flex: 1; min-width: 0; cursor: pointer; padding: 4px 0; }
-  .item-row .name { font-size: 15px; font-weight: 600; word-break: break-word; }
-  .item-row .tags { font-size: 11px; color: var(--ink-soft); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; }
-  .tag { border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  li.item.open { grid-column: 1 / -1; }
+  .item-main { display: flex; flex-direction: column; gap: 8px; padding: 10px 8px; }
+  .name-area { min-width: 0; cursor: pointer; text-align: center; }
+  .name-area .name { font-size: 14px; font-weight: 600; word-break: break-word; line-height: 1.3; }
+  .name-area .tags { font-size: 10px; color: var(--ink-soft); margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+  .tag { border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; white-space: nowrap; }
   .tag.alert-on { color: var(--warn); border-color: var(--warn); }
   .tag.staple { color: var(--accent); border-color: var(--accent); }
-  .counter { display: flex; align-items: center; gap: 2px; flex: none; }
-  .counter button {
-    width: 38px; height: 38px;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--ink);
-    border-radius: 10px;
-    font-size: 18px;
-    font-family: inherit;
-    cursor: pointer;
-    line-height: 1;
-  }
-  .counter .count {
-    width: 58px; text-align: center;
-    font-size: 16px; font-weight: 700;
+  .count {
+    width: 100%; text-align: center;
+    font-size: 17px; font-weight: 700;
     font-variant-numeric: tabular-nums;
     font-family: inherit;
     border: 1px solid var(--line);
@@ -194,10 +184,24 @@
     padding: 8px 2px;
     -moz-appearance: textfield;
   }
-  .counter .count::-webkit-outer-spin-button,
-  .counter .count::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .counter .count.zero { color: var(--danger); border-color: var(--danger); }
-  .counter .count.low { color: var(--warn); border-color: var(--warn); }
+  .count::-webkit-outer-spin-button,
+  .count::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .count.zero { color: var(--danger); border-color: var(--danger); }
+  .count.low { color: var(--warn); border-color: var(--warn); }
+  .counter { display: flex; gap: 6px; }
+  .counter button {
+    flex: 1; height: 34px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 8px;
+    font-size: 18px;
+    font-family: inherit;
+    cursor: pointer;
+    line-height: 1;
+  }
+  /* 詳細を開いたカードは全幅に広がるので中身を中央寄せで見やすく */
+  li.item.open .item-main { max-width: 340px; margin: 0 auto; }
   .item-editor {
     display: none;
     border-top: 1px solid var(--line);
@@ -653,7 +657,7 @@
     </div>
     <div class="login-field">
       <label for="loginUser">ID(半角英数字)</label>
-      <input type="text" id="loginUser" autocomplete="username" autocapitalize="none" maxlength="30" placeholder="例:kitamura">
+      <input type="text" id="loginUser" autocomplete="username" autocapitalize="none" maxlength="30" placeholder="例:kaimono">
     </div>
     <div class="login-field">
       <label for="loginPass">パスワード</label>
@@ -708,10 +712,8 @@
       <button type="submit">追加</button>
     </form>
 
-    <details class="danger-zone">
-      <summary>データの初期化</summary>
-      <button id="resetBtn">すべてのデータを消去する</button>
-    </details>
+    <div class="section-label">現在の在庫</div>
+    <ul class="inv" id="invListInput"></ul>
   </section>
 
   <!-- ============ 買い物タブ ============ -->
@@ -770,6 +772,11 @@
       </label>
       <p class="desc">書き出したファイルをスマホの「ファイル」やGoogle Driveに保管しておけば、ブラウザのデータ消去や機種変更後も復元できます。</p>
     </div>
+
+    <details class="danger-zone">
+      <summary>データの初期化</summary>
+      <button id="resetBtn">すべてのデータを消去する</button>
+    </details>
   </section>
 </div>
 
@@ -898,54 +905,57 @@
       `<button data-quick="${i.id}">${esc(i.name)} <span>+${fmt(stepOf(i))}</span></button>`).join('');
   }
 
+  function invItemHTML(i) {
+    const cls = i.count === 0 ? 'zero' : (isAlerting(i) ? 'low' : '');
+    return `<li class="item ${i.id === openId ? 'open' : ''}" data-id="${i.id}">
+      <div class="item-main">
+        <div class="name-area" data-open="${i.id}">
+          <div class="name">${esc(i.name)}</div>
+          <div class="tags">
+            ${i.staple ? '<span class="tag staple">常備</span>' : ''}
+            ${i.alertOn ? `<span class="tag alert-on">残${fmt(i.threshold)}〜</span>` : ''}
+          </div>
+        </div>
+        <input class="count ${cls}" type="number" min="0" max="99" step="0.25" inputmode="decimal" value="${fmt(i.count)}" data-count="${i.id}" aria-label="在庫数を直接入力">
+        <div class="counter">
+          <button data-dec="${i.id}" aria-label="減らす">−</button>
+          <button data-inc="${i.id}" aria-label="増やす">＋</button>
+        </div>
+      </div>
+      <div class="item-editor">
+        <div class="ed-row">
+          <label>常備食材にする<span class="desc">ワンタップ登録に表示(最大${MAX_STAPLES}個)</span></label>
+          <span class="switch"><input type="checkbox" data-staple="${i.id}" ${i.staple ? 'checked' : ''}><span class="knob"></span></span>
+        </div>
+        <div class="ed-row">
+          <label>アラート<span class="desc">在庫が下の数「以下」で通知・買い物リストへ</span></label>
+          <span class="switch"><input type="checkbox" data-alert="${i.id}" ${i.alertOn ? 'checked' : ''}><span class="knob"></span></span>
+        </div>
+        <div class="ed-row">
+          <label>アラートする在庫数(以下)</label>
+          <input type="number" min="0" max="99" step="0.25" inputmode="decimal" value="${fmt(i.threshold)}" data-threshold="${i.id}">
+        </div>
+        <div class="ed-row">
+          <label>買い物時の購入数</label>
+          <input type="number" min="0.25" max="99" step="0.25" inputmode="decimal" value="${fmt(i.buyQty)}" data-buyqty="${i.id}">
+        </div>
+        <button class="ed-del" data-del="${i.id}">この食材を削除</button>
+      </div>
+    </li>`;
+  }
+
   function renderInv() {
-    const el = $('invList');
+    const targets = [$('invList'), $('invListInput')];
+    let html;
     if (items.length === 0) {
-      el.innerHTML = `<div class="inv-empty">在庫はまだ空です。<br>上の入力欄か、下のボタンでよく使う食材をまとめて登録できます。
-        <button class="preset-btn" id="presetBtn">おすすめ食材10個を一括登録</button></div>`;
-      renderChips();
-      return;
+      html = `<div class="inv-empty">在庫はまだ空です。<br>「在庫入力」タブや下のボタンで登録できます。
+        <button class="preset-btn" data-preset="1">おすすめ食材10個を一括登録</button></div>`;
+    } else {
+      const sorted = [...items].sort((a, b) =>
+        (needsBuying(b) - needsBuying(a)) || (b.staple - a.staple) || a.name.localeCompare(b.name, 'ja'));
+      html = sorted.map(invItemHTML).join('');
     }
-    const sorted = [...items].sort((a, b) =>
-      (needsBuying(b) - needsBuying(a)) || (b.staple - a.staple) || a.name.localeCompare(b.name, 'ja'));
-    el.innerHTML = sorted.map(i => {
-      const cls = i.count === 0 ? 'zero' : (isAlerting(i) ? 'low' : '');
-      return `<li class="item ${i.id === openId ? 'open' : ''}" data-id="${i.id}">
-        <div class="item-row">
-          <div class="name-area" data-open="${i.id}">
-            <div class="name">${esc(i.name)}</div>
-            <div class="tags">
-              ${i.staple ? '<span class="tag staple">常備</span>' : ''}
-              ${i.alertOn ? `<span class="tag alert-on">残${fmt(i.threshold)}以下で通知</span>` : ''}
-            </div>
-          </div>
-          <div class="counter">
-            <button data-dec="${i.id}" aria-label="減らす">−</button>
-            <input class="count ${cls}" type="number" min="0" max="99" step="0.25" inputmode="decimal" value="${fmt(i.count)}" data-count="${i.id}" aria-label="在庫数を直接入力">
-            <button data-inc="${i.id}" aria-label="増やす">＋</button>
-          </div>
-        </div>
-        <div class="item-editor">
-          <div class="ed-row">
-            <label>常備食材にする<span class="desc">ワンタップ登録に表示(最大${MAX_STAPLES}個)</span></label>
-            <span class="switch"><input type="checkbox" data-staple="${i.id}" ${i.staple ? 'checked' : ''}><span class="knob"></span></span>
-          </div>
-          <div class="ed-row">
-            <label>アラート<span class="desc">在庫が下の数「以下」で通知・買い物リストへ</span></label>
-            <span class="switch"><input type="checkbox" data-alert="${i.id}" ${i.alertOn ? 'checked' : ''}><span class="knob"></span></span>
-          </div>
-          <div class="ed-row">
-            <label>アラートする在庫数(以下)</label>
-            <input type="number" min="0" max="99" step="0.25" inputmode="decimal" value="${fmt(i.threshold)}" data-threshold="${i.id}">
-          </div>
-          <div class="ed-row">
-            <label>買い物時の購入数</label>
-            <input type="number" min="0.25" max="99" step="0.25" inputmode="decimal" value="${fmt(i.buyQty)}" data-buyqty="${i.id}">
-          </div>
-          <button class="ed-del" data-del="${i.id}">この食材を削除</button>
-        </div>
-      </li>`;
-    }).join('');
+    targets.forEach(el => { if (el) el.innerHTML = html; });
     renderChips();
   }
 
@@ -1077,10 +1087,10 @@
     save(); renderAll();
   });
 
-  $('invList').addEventListener('click', e => {
+  function onInvClick(e) {
     const t = e.target;
     const inc = t.dataset.inc, dec = t.dataset.dec, del = t.dataset.del, open = t.closest('[data-open]');
-    if (t.id === 'presetBtn') { addPresets(); return; }
+    if (t.closest('[data-preset]')) { addPresets(); return; }
     if (inc) {
       const i = items.find(x => x.id === inc);
       if (i) { i.count = r2(Math.min(99, i.count + stepOf(i))); save(); renderAll(); }
@@ -1102,9 +1112,9 @@
       openId = (openId === id) ? null : id;
       renderInv();
     }
-  });
+  }
 
-  $('invList').addEventListener('change', e => {
+  function onInvChange(e) {
     const t = e.target;
     if (t.dataset.count) {
       const i = items.find(x => x.id === t.dataset.count);
@@ -1134,6 +1144,14 @@
     } else if (t.dataset.buyqty) {
       const i = items.find(x => x.id === t.dataset.buyqty);
       if (i) { i.buyQty = r2(Math.max(0.25, parseFloat(t.value) || 1)); save(); renderAll(); openId = i.id; renderInv(); }
+    }
+  }
+
+  ['invList', 'invListInput'].forEach(id => {
+    const el = $(id);
+    if (el) {
+      el.addEventListener('click', onInvClick);
+      el.addEventListener('change', onInvChange);
     }
   });
 
