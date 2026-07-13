@@ -700,14 +700,14 @@
         <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none">
       </label>
     </div>
-    <p class="voice-hint">言い方の例:「牛乳 2本 追加」「卵 使った」「キャベツ 半分 使った」「トマト なくなった」「じゃがいも 削除」</p>
+    <p class="voice-hint">言い方の例:「豚ロース薄切り 1パック 追加」「牛乳 2本 追加」「キャベツ 半分 使った」「卵 なくなった」「じゃがいも 削除」<br>肉は「豚ロース薄切り/厚切り」「鶏もも肉」、野菜の半分は「半分/半玉」のように具体的に言えます。</p>
 
     <div class="section-label">ワンタップ登録(常備食材)</div>
     <div class="chips" id="stapleChips"></div>
 
     <div class="section-label">食材を追加</div>
     <form class="add-form" id="addForm">
-      <input type="text" id="addName" placeholder="品名(例:牛乳)" maxlength="30" autocomplete="off" aria-label="品名">
+      <input type="text" id="addName" placeholder="品名(例:豚ロース薄切り)" maxlength="30" autocomplete="off" aria-label="品名">
       <input type="number" id="addCount" value="1" min="0" max="99" step="0.25" inputmode="decimal" aria-label="個数">
       <button type="submit">追加</button>
     </form>
@@ -730,7 +730,7 @@
     <button class="ai-btn" id="aiMenuBtn">🤖 AIに献立を提案してもらう</button>
     <div id="aiMenuArea"></div>
     <div id="menuArea"></div>
-    <p class="recipe-note">※品名の部分一致で判定しています(例: 在庫「豚肉」はレシピの「豚肉」に一致)。調味料(醤油・塩など)は常備されている前提で判定に含めていません。</p>
+    <p class="recipe-note">※品名の部分一致で判定します。肉の部位・切り方も自動でまとめます(例: 在庫「豚ロース薄切り」「豚バラ薄切り」はレシピの「豚肉」に一致)。調味料(醤油・塩など)は常備されている前提で判定に含めていません。</p>
   </section>
 
   <!-- ============ 設定タブ ============ -->
@@ -1028,7 +1028,20 @@
     { name: '豆腐ハンバーグ', ing: ['豆腐', 'ひき肉', '玉ねぎ'] }
   ];
 
-  const haveIng = ing => items.some(i => i.count > 0 && (i.name.includes(ing) || ing.includes(i.name)));
+  // レシピ材料の照合。詳しい在庫名(例:豚ロース薄切り)でも基本材料(豚肉)に一致させる。
+  // 牛乳が牛肉に誤マッチしないよう、肉類は除外条件つきで判定。
+  const MEAT_MATCH = {
+    '豚肉': /豚|ポーク/,
+    '鶏肉': /鶏|とり肉|チキン/,
+    '牛肉': /牛(?!乳|脂)|ビーフ/,
+    'ひき肉': /ひき肉|挽き肉|ミンチ|ひき|びき/
+  };
+  function ingMatch(stockName, ing) {
+    if (stockName.includes(ing) || ing.includes(stockName)) return true;
+    const re = MEAT_MATCH[ing];
+    return re ? re.test(stockName) : false;
+  }
+  const haveIng = ing => items.some(i => i.count > 0 && ingMatch(i.name, ing));
 
   function renderMenu() {
     const el = $('menuArea');
@@ -1380,7 +1393,15 @@
   }
 
   /* ---------------- 写真で食材認識 ---------------- */
-  const PHOTO_PROMPT = 'この写真に写っている食品・食材・飲料をすべて挙げてください。JSON配列のみを出力してください(説明文・コードブロック不要): [{"name":"一般的な食材名(日本語)","count":おおよその個数(数値)}] 食品以外の物や重複は含めないでください。';
+  const PHOTO_PROMPT =
+    'この写真に写っている食品・食材・飲料をすべて挙げ、JSON配列のみを出力してください(説明文・コードブロック不要)。\n' +
+    '形式: [{"name":"食材名(日本語)","count":数量(数値)}]\n' +
+    'ルール:\n' +
+    '・肉類はできるだけ具体的に。種類+部位+切り方まで含める(例:豚ロース薄切り、豚ロース厚切り、豚バラ薄切り、豚こま切れ、鶏もも肉、鶏むね肉、牛こま切れ、牛バラ肉、豚ひき肉、合いびき肉)。パッケージの表示ラベルが読める場合はその表記を優先する。\n' +
+    '・魚も種類・切り身などを具体的に(例:鮭切り身、さば、まぐろ刺身)。\n' +
+    '・野菜などで丸ごと1個でない場合は分数を数値で表す(半分=0.5、1/4=0.25。例:キャベツ半玉→{"name":"キャベツ","count":0.5})。名前は基本の食材名にする。\n' +
+    '・個数が読み取れればその数、不明なら1。\n' +
+    '・食品以外の物や、同じ食材の重複は含めない。';
   let photoMode = 'add';
   let photoBusy = false;
 
