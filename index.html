@@ -555,6 +555,65 @@
     color: #fff;
   }
 
+  /* ---- login screen ---- */
+  .login-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-y: auto;
+    padding: 40px 20px calc(40px + env(safe-area-inset-bottom));
+  }
+  .login-overlay.show { display: flex; }
+  .login-box { width: 100%; max-width: 360px; }
+  .login-logo { text-align: center; font-size: 44px; margin-bottom: 6px; }
+  .login-title { text-align: center; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+  .login-lead { text-align: center; font-size: 13px; color: var(--ink-soft); margin: 0 0 22px; line-height: 1.7; }
+  .login-seg { display: flex; gap: 6px; margin-bottom: 18px; }
+  .login-seg button {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 11px 0;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .login-seg button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .login-field { margin-bottom: 14px; }
+  .login-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .login-field input {
+    width: 100%;
+    font-size: 16px;
+    font-family: inherit;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .login-submit {
+    width: 100%;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 12px;
+    padding: 15px 0;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .login-submit:disabled { opacity: 0.6; }
+  .login-error { color: var(--danger); font-size: 13px; text-align: center; margin: 12px 0 0; min-height: 18px; line-height: 1.6; }
+  .login-note { font-size: 11px; color: var(--ink-soft); line-height: 1.7; margin: 20px 0 0; text-align: center; }
+
   details.danger-zone { margin-top: 24px; }
   details.danger-zone summary { font-size: 12px; color: var(--ink-soft); cursor: pointer; }
   details.danger-zone button {
@@ -579,6 +638,30 @@
       <button class="m-cancel" id="modalCancel">キャンセル</button>
       <button class="m-ok" id="modalOk">実行する</button>
     </div>
+  </div>
+</div>
+
+<!-- ============ ログイン画面 ============ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">🥕</div>
+    <h1 class="login-title">食材在庫&買い物リスト</h1>
+    <p class="login-lead">IDとパスワードでログインすると、どの端末でも同じデータが使えます。</p>
+    <div class="login-seg" id="loginSeg">
+      <button data-mode="login" class="active">ログイン</button>
+      <button data-mode="register">新規登録</button>
+    </div>
+    <div class="login-field">
+      <label for="loginUser">ID(半角英数字)</label>
+      <input type="text" id="loginUser" autocomplete="username" autocapitalize="none" maxlength="30" placeholder="例:kitamura">
+    </div>
+    <div class="login-field">
+      <label for="loginPass">パスワード</label>
+      <input type="password" id="loginPass" autocomplete="current-password" maxlength="60" placeholder="4文字以上">
+    </div>
+    <button class="login-submit" id="loginSubmit">ログイン</button>
+    <p class="login-error" id="loginError"></p>
+    <p class="login-note" id="loginNote">※このアプリ専用の簡単なパスワードにしてください(銀行・メール等の重要なパスワードは使わないこと)。データは2人で共有せず、IDごとに分かれます。</p>
   </div>
 </div>
 
@@ -651,7 +734,17 @@
   <!-- ============ 設定タブ ============ -->
   <section class="tabpage" id="page-settings">
     <h1>設定</h1>
-    <p class="sub">AI機能(写真で食材認識・AI献立提案)は、設定なしでそのまま使えます。以下は「自分専用のAI枠を使いたい」上級者向けの任意設定です。</p>
+
+    <div class="section-label">アカウント</div>
+    <div class="set-card">
+      <p style="font-size:14px; margin:0 0 4px">ログイン中: <strong id="acctName">—</strong></p>
+      <p class="key-status" id="syncStatus" style="text-align:left; margin:0 0 10px; font-weight:400; font-size:12px; color:var(--ink-soft)"></p>
+      <button class="set-btn ghost" id="logoutBtn" style="color:var(--danger); border-color:var(--danger)">ログアウト</button>
+      <p class="desc">ログアウトしても、サーバー上のデータは消えません。再ログインすれば元通りです。この端末に残った表示用データだけ消えます。</p>
+    </div>
+
+    <div class="section-label" style="margin-top:22px">AI設定(任意)</div>
+    <p class="sub" style="margin-top:0">AI機能(写真で食材認識・AI献立提案)は、設定なしでそのまま使えます。以下は「自分専用のAI枠を使いたい」上級者向けの任意設定です。</p>
 
     <div class="set-card">
       <label for="gkeyInput">自分のGemini APIキー(任意)</label>
@@ -717,7 +810,7 @@
   let openId = null;
 
   try { items = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { items = []; }
-  const save = () => localStorage.setItem(KEY, JSON.stringify(items));
+  const save = () => { localStorage.setItem(KEY, JSON.stringify(items)); scheduleSync(); };
 
   const esc = s => String(s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1454,6 +1547,129 @@
     if (btn) switchTab(btn.dataset.page);
   });
 
+  /* ================= アカウント & クラウド同期 ================= */
+  const AUTH_KEY = 'kaimono-auth-v1';
+  let auth = null;
+  try { auth = JSON.parse(localStorage.getItem(AUTH_KEY)); } catch (e) { auth = null; }
+  let loginMode = 'login';
+
+  async function apiPost(path, payload) {
+    const res = await fetch(WORKER_URL + path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(data.error || ('通信エラー(' + res.status + ')'));
+    return data;
+  }
+
+  function setSyncStatus(msg, cls) {
+    const el = $('syncStatus');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = cls === 'ok' ? 'var(--ok)' : (cls === 'ng' ? 'var(--danger)' : 'var(--ink-soft)');
+  }
+
+  // データ同期(デバウンス: 最後の変更から1.5秒後にまとめて保存)
+  let syncTimer = null;
+  function scheduleSync() {
+    if (!auth) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(doSync, 1500);
+  }
+  async function doSync() {
+    if (!auth) return;
+    setSyncStatus('同期中…', '');
+    try {
+      await apiPost('/sync', { username: auth.username, token: auth.token, data: { items } });
+      setSyncStatus('✓ 保存済み(クラウド同期)', 'ok');
+    } catch (err) {
+      if (/有効期限|401/.test(err.message)) forceLogout('ログインの有効期限が切れました。再ログインしてください');
+      else setSyncStatus('⚠ 未同期(電波状況を確認してください)', 'ng');
+    }
+  }
+
+  function showLogin() { $('loginOverlay').classList.add('show'); }
+  function hideLogin() { $('loginOverlay').classList.remove('show'); }
+  function setLoginMode(mode) {
+    loginMode = mode;
+    document.querySelectorAll('#loginSeg button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    $('loginSubmit').textContent = mode === 'login' ? 'ログイン' : '登録して始める';
+    $('loginPass').setAttribute('autocomplete', mode === 'login' ? 'current-password' : 'new-password');
+    $('loginError').textContent = '';
+  }
+  $('loginSeg').addEventListener('click', e => {
+    const m = e.target.dataset.mode;
+    if (m) setLoginMode(m);
+  });
+  $('loginSubmit').addEventListener('click', doAuth);
+  $('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doAuth(); });
+
+  async function doAuth() {
+    const username = $('loginUser').value.trim().toLowerCase();
+    const password = $('loginPass').value;
+    if (!username || !password) { $('loginError').textContent = 'IDとパスワードを入力してください'; return; }
+    const btn = $('loginSubmit');
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = '通信中…';
+    $('loginError').textContent = '';
+    try {
+      if (loginMode === 'register') {
+        const data = await apiPost('/register', { username, password });
+        auth = { username: data.username, token: data.token };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+        // 新規登録時は、この端末の現在の在庫をアカウントに引き継ぐ
+        if (items.length > 0) {
+          await apiPost('/sync', { username: auth.username, token: auth.token, data: { items } });
+        } else if (data.data && Array.isArray(data.data.items)) {
+          items = data.data.items;
+        }
+      } else {
+        const data = await apiPost('/login', { username, password });
+        auth = { username: data.username, token: data.token };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+        items = (data.data && Array.isArray(data.data.items)) ? data.data.items : [];
+      }
+      localStorage.setItem(KEY, JSON.stringify(items));
+      $('loginPass').value = '';
+      $('acctName').textContent = auth.username;
+      setSyncStatus('✓ クラウド同期 有効', 'ok');
+      renderAll();
+      hideLogin();
+      toast(loginMode === 'register' ? 'アカウントを作成しました' : 'ログインしました');
+    } catch (err) {
+      $('loginError').textContent = err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
+
+  function forceLogout(msg) {
+    auth = null;
+    localStorage.removeItem(AUTH_KEY);
+    setLoginMode('login');
+    showLogin();
+    if (msg) $('loginError').textContent = msg;
+  }
+
+  $('logoutBtn').addEventListener('click', () => {
+    confirmDialog('ログアウトします。サーバー上のデータは消えません(再ログインで元通り)。よろしいですか?', () => {
+      auth = null;
+      localStorage.removeItem(AUTH_KEY);
+      items = [];
+      localStorage.setItem(KEY, JSON.stringify(items));
+      renderAll();
+      setLoginMode('login');
+      $('loginUser').value = '';
+      $('loginPass').value = '';
+      showLogin();
+    });
+  });
+
   /* ---------------- 初期化 ---------------- */
   $('gkeyInput').value = getGKey();
   if (getGKey()) {
@@ -1462,5 +1678,27 @@
   }
   renderStepSeg();
   renderAll();
+
+  if (auth) {
+    // 認証済み: サーバーから最新データを読み込む(オフラインならローカルで続行)
+    $('acctName').textContent = auth.username;
+    setSyncStatus('読み込み中…', '');
+    apiPost('/load', { username: auth.username, token: auth.token })
+      .then(data => {
+        if (data.data && Array.isArray(data.data.items)) {
+          items = data.data.items;
+          localStorage.setItem(KEY, JSON.stringify(items));
+          renderAll();
+        }
+        setSyncStatus('✓ クラウド同期 有効', 'ok');
+      })
+      .catch(err => {
+        if (/有効期限|401/.test(err.message)) forceLogout('ログインの有効期限が切れました。再ログインしてください');
+        else setSyncStatus('⚠ オフライン(この端末のデータを表示中)', 'ng');
+      });
+  } else {
+    setLoginMode('login');
+    showLogin();
+  }
 })();
 </script>
